@@ -302,7 +302,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
       position: popoverPosition
     });
     try {
-      const response = await window.silkroad.ai.translate({
+      const response = await window.silkroad.translation.translate({
         text: selection.text,
         targetLanguage: settings.targetLanguage,
         context: getReaderContext()
@@ -321,7 +321,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
       }
       setTranslationPopover({
         status: "error",
-        error: caught instanceof Error ? caught.message : String(caught),
+        error: formatTranslationError(caught),
         position: popoverPosition
       });
     } finally {
@@ -746,6 +746,13 @@ function formatReaderError(label: string, reason: unknown): string {
     return `${label}: ${reason.message}`;
   }
   return `${label}: ${String(reason)}`;
+}
+
+function formatTranslationError(reason: unknown): string {
+  const message = reason instanceof Error ? reason.message : String(reason);
+  return message
+    .replace(/^Error invoking remote method 'translation:translate':\s*/u, "")
+    .replace(/^Error:\s*/u, "");
 }
 
 function getToolbarPosition(

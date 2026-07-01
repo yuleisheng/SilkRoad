@@ -13,6 +13,7 @@ import type {
 import type { AppPaths } from "./storage/app-paths";
 import { LibraryDatabase } from "./storage/database";
 import { ProviderManager } from "./providers/provider-manager";
+import { translateWithAppleSystem } from "./system-translation";
 
 export function registerIpcHandlers(
   database: LibraryDatabase,
@@ -99,6 +100,10 @@ export function registerIpcHandlers(
 
   ipcMain.handle("ai:translate", (_event, request: TranslateRequest) =>
     providerManager.translate(request)
+  );
+
+  ipcMain.handle("translation:translate", (_event, request: TranslateRequest) =>
+    translateWithAppleSystem(request)
   );
 
   ipcMain.handle("ai:chat", (_event, request: ChatRequest) =>

@@ -4,6 +4,8 @@ export type ProviderKind =
   | "ollama-cloud"
   | "codex-subscription";
 
+export type TranslationProviderKind = ProviderKind | "apple-system";
+
 export type AnnotationType = "highlight" | "note";
 
 export interface BookRecord {
@@ -111,7 +113,7 @@ export interface TranslateRequest {
 
 export interface TranslateResponse {
   text: string;
-  providerId: ProviderKind;
+  providerId: TranslationProviderKind;
 }
 
 export interface ImportAnnotationsPayload {
@@ -154,6 +156,9 @@ export interface SilkRoadAPI {
   };
   ai: {
     chat(request: ChatRequest): Promise<ChatResponse>;
+    translate(request: TranslateRequest): Promise<TranslateResponse>;
+  };
+  translation: {
     translate(request: TranslateRequest): Promise<TranslateResponse>;
   };
 }

@@ -39,6 +39,10 @@ const api: SilkRoadAPI = {
   ai: {
     chat: (request: ChatRequest) => ipcRenderer.invoke("ai:chat", request),
     translate: (request: TranslateRequest) => ipcRenderer.invoke("ai:translate", request)
+  },
+  translation: {
+    translate: (request: TranslateRequest) =>
+      ipcRenderer.invoke("translation:translate", request)
   }
 };
 

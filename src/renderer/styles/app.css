@@ -1,7 +1,7 @@
 :root {
-  --main: #1d1b2e;
-  --main-2: #34314d;
-  --main-3: #464361;
+  --main: #1f1d30;
+  --main-2: #312e46;
+  --main-3: #48435f;
   --accent: #c9c5ff;
   --accent-strong: #7e78d8;
   --accent-soft: #f0efff;
@@ -64,7 +64,7 @@ button:disabled {
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  padding: 18px 10px;
+  padding: 52px 10px 18px;
   background: var(--main);
   color: #f8f7f3;
 }
@@ -87,6 +87,10 @@ button:disabled {
   border-radius: 8px;
   background: transparent;
   color: inherit;
+}
+
+.rail-button {
+  color: rgba(248, 247, 243, 0.72);
 }
 
 .rail-button:hover,
@@ -475,6 +479,10 @@ textarea:focus {
   padding: 0 18px 18px 14px;
 }
 
+.reader-body.side-collapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .book-pane {
   position: relative;
   min-width: 0;
@@ -557,6 +565,8 @@ textarea:focus {
   left: 50%;
   display: flex;
   align-items: center;
+  max-width: calc(100% - 24px);
+  flex-wrap: wrap;
   gap: 6px;
   padding: 6px;
   border: 1px solid var(--border);
@@ -564,6 +574,10 @@ textarea:focus {
   background: rgba(255, 253, 249, 0.97);
   box-shadow: 0 14px 35px rgba(29, 27, 46, 0.17);
   transform: translateX(-50%);
+}
+
+.selection-toolbar.positioned {
+  transform: translate(-50%, calc(-100% - 10px));
 }
 
 .selection-toolbar button {
@@ -587,6 +601,41 @@ textarea:focus {
   width: 32px;
   padding: 0;
   justify-content: center;
+}
+
+.page-controls {
+  position: absolute;
+  z-index: 9;
+  right: 18px;
+  bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.28;
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease;
+}
+
+.book-pane:hover .page-controls,
+.page-controls:focus-within {
+  opacity: 1;
+}
+
+.page-controls .page-button {
+  width: 34px;
+  height: 34px;
+  border-color: rgba(72, 67, 95, 0.2);
+  color: rgba(31, 29, 48, 0.74);
+  background: rgba(255, 253, 249, 0.72);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 28px rgba(31, 29, 48, 0.1);
+}
+
+.page-controls .page-button:hover {
+  border-color: rgba(126, 120, 216, 0.52);
+  color: var(--accent-strong);
+  background: rgba(255, 253, 249, 0.96);
 }
 
 .reader-side {

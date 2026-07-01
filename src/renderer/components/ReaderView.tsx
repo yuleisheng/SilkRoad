@@ -5,6 +5,7 @@ import {
   Highlighter,
   Languages,
   MessageSquare,
+  PanelRightClose,
   PanelRightOpen,
   Save,
   Search,
@@ -32,11 +33,16 @@ interface ActiveSelection {
   cfiRange: string;
   text: string;
   chapterText: string;
+  toolbarPosition?: {
+    left: number;
+    top: number;
+  };
 }
 
 type SideTab = "annotations" | "translate" | "ai";
 
 export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderViewProps) {
+  const bookPaneRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<HTMLDivElement | null>(null);
   const renditionRef = useRef<any>(null);
   const epubRef = useRef<any>(null);
@@ -45,6 +51,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
   const [selection, setSelection] = useState<ActiveSelection | null>(null);
   const [currentChapterText, setCurrentChapterText] = useState("");
   const [sideTab, setSideTab] = useState<SideTab>(getInitialSideTab);
+  const [sidePanelOpen, setSidePanelOpen] = useState(true);
   const [noteDraft, setNoteDraft] = useState("");
   const [translation, setTranslation] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -73,7 +80,8 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
         setSelection({
           cfiRange: "mock-cfi-selection",
           text: "A route is also a habit of attention.",
-          chapterText: DEMO_CHAPTER_TEXT
+          chapterText: DEMO_CHAPTER_TEXT,
+          toolbarPosition: { left: 430, top: 438 }
         });
         setSideTab(initialTab);
         if (initialTab === "translate") {
@@ -162,16 +170,15 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
       });
 
       rendition.on("selected", (cfiRange: string, contents: any) => {
-        const selectedText =
-          contents?.window?.getSelection?.()?.toString?.().trim() ?? "";
+        const contentsSelection = contents?.window?.getSelection?.();
+        const selectedText = contentsSelection?.toString?.().trim() ?? "";
         const chapterText = contents?.document?.body?.innerText ?? "";
+        const toolbarPosition = getToolbarPosition(contents, bookPaneRef.current);
 
         if (selectedText) {
-          setSelection({ cfiRange, text: selectedText, chapterText });
+          setSelection({ cfiRange, text: selectedText, chapterText, toolbarPosition });
           setCurrentChapterText(chapterText);
         }
-
-        contents?.window?.getSelection?.()?.removeAllRanges?.();
       });
 
       await rendition.display(location?.cfi);
@@ -240,6 +247,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
     setBusy(true);
     setError(null);
     setSideTab("translate");
+    setSidePanelOpen(true);
     try {
       const response = await window.silkroad.ai.translate({
         text: selection.text,
@@ -272,6 +280,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
     setBusy(true);
     setError(null);
     setSideTab("ai");
+    setSidePanelOpen(true);
 
     try {
       const response = await window.silkroad.ai.chat({
@@ -320,6 +329,11 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
     }
   }
 
+  function openSideTab(tab: SideTab) {
+    setSideTab(tab);
+    setSidePanelOpen(true);
+  }
+
   return (
     <section className="reader-view">
       <header className="reader-bar">
@@ -332,44 +346,33 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
             <p>{book.author || book.fileName}</p>
           </div>
         </div>
-        <div className="reader-controls">
-          <button
-            className="icon-button"
-            title="上一页"
-            onClick={() => renditionRef.current?.prev?.()}
-          >
-            <ChevronLeft size={19} />
-          </button>
-          <button
-            className="icon-button"
-            title="下一页"
-            onClick={() => renditionRef.current?.next?.()}
-          >
-            <ChevronRight size={19} />
-          </button>
-          <button
-            className="icon-button"
-            title="侧栏"
-            onClick={() => setSideTab("annotations")}
-          >
-            <PanelRightOpen size={19} />
-          </button>
-        </div>
       </header>
 
-      <div className="reader-body">
-        <div className="book-pane">
+      <div className={sidePanelOpen ? "reader-body" : "reader-body side-collapsed"}>
+        <div ref={bookPaneRef} className="book-pane">
           {readerStatus === "loading" ? (
             <div className="reader-loading">Loading EPUB...</div>
           ) : null}
           {error ? <div className="reader-error">{error}</div> : null}
           {selection ? (
-            <div className="selection-toolbar">
+            <div
+              className={`selection-toolbar${
+                selection.toolbarPosition ? " positioned" : ""
+              }`}
+              style={
+                selection.toolbarPosition
+                  ? {
+                      left: selection.toolbarPosition.left,
+                      top: selection.toolbarPosition.top
+                    }
+                  : undefined
+              }
+            >
               <button onClick={() => void createHighlight("highlight")}>
                 <Highlighter size={16} />
                 高亮
               </button>
-              <button onClick={() => setSideTab("annotations")}>
+              <button onClick={() => openSideTab("annotations")}>
                 <StickyNote size={16} />
                 Note
               </button>
@@ -377,7 +380,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
                 <Languages size={16} />
                 翻译
               </button>
-              <button onClick={() => setSideTab("ai")}>
+              <button onClick={() => openSideTab("ai")}>
                 <MessageSquare size={16} />
                 AI
               </button>
@@ -387,124 +390,155 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
             </div>
           ) : null}
           {isMockReader ? <DemoReaderPage /> : <div ref={viewerRef} className="epub-viewer" />}
-        </div>
-
-        <aside className="reader-side">
-          <div className="tabs">
+          <div className="page-controls" aria-label="阅读导航">
             <button
-              className={sideTab === "annotations" ? "active" : ""}
-              onClick={() => setSideTab("annotations")}
+              className="icon-button page-button"
+              title="上一页"
+              onClick={() => renditionRef.current?.prev?.()}
+              disabled={isMockReader || readerStatus !== "ready"}
             >
-              Notes
+              <ChevronLeft size={18} />
             </button>
             <button
-              className={sideTab === "translate" ? "active" : ""}
-              onClick={() => setSideTab("translate")}
+              className="icon-button page-button"
+              title="下一页"
+              onClick={() => renditionRef.current?.next?.()}
+              disabled={isMockReader || readerStatus !== "ready"}
             >
-              翻译
+              <ChevronRight size={18} />
             </button>
             <button
-              className={sideTab === "ai" ? "active" : ""}
-              onClick={() => setSideTab("ai")}
+              className="icon-button page-button"
+              title={sidePanelOpen ? "隐藏侧栏" : "显示侧栏"}
+              onClick={() => setSidePanelOpen((current) => !current)}
             >
-              AI
+              {sidePanelOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
             </button>
           </div>
+        </div>
 
-          {error ? <div className="inline-error">{error}</div> : null}
+        {sidePanelOpen ? (
+          <aside className="reader-side">
+            <div className="tabs">
+              <button
+                className={sideTab === "annotations" ? "active" : ""}
+                onClick={() => setSideTab("annotations")}
+              >
+                Notes
+              </button>
+              <button
+                className={sideTab === "translate" ? "active" : ""}
+                onClick={() => setSideTab("translate")}
+              >
+                翻译
+              </button>
+              <button
+                className={sideTab === "ai" ? "active" : ""}
+                onClick={() => setSideTab("ai")}
+              >
+                AI
+              </button>
+            </div>
 
-          {sideTab === "annotations" ? (
-            <div className="side-section">
-              {selection ? (
-                <div className="note-composer">
-                  <p>{selection.text}</p>
+            {error ? <div className="inline-error">{error}</div> : null}
+
+            {sideTab === "annotations" ? (
+              <div className="side-section">
+                {selection ? (
+                  <div className="note-composer">
+                    <p>{selection.text}</p>
+                    <textarea
+                      value={noteDraft}
+                      onChange={(event) => setNoteDraft(event.target.value)}
+                    />
+                    <button
+                      className="primary-button"
+                      onClick={() => void createHighlight("note", noteDraft)}
+                      disabled={!noteDraft.trim()}
+                    >
+                      <Save size={16} />
+                      保存 Note
+                    </button>
+                  </div>
+                ) : null}
+
+                <div className="annotation-list">
+                  {annotations.map((annotation) => (
+                    <article key={annotation.id} className="annotation-item">
+                      <button
+                        className="annotation-jump"
+                        onClick={() => renditionRef.current?.display?.(annotation.cfiRange)}
+                      >
+                        <span className="annotation-type">
+                          {annotation.type === "note" ? "Note" : "Highlight"}
+                        </span>
+                        <span>{annotation.selectedText}</span>
+                        {annotation.noteText ? <strong>{annotation.noteText}</strong> : null}
+                      </button>
+                      <button
+                        className="icon-button small"
+                        title="删除"
+                        onClick={() => void removeAnnotation(annotation)}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {sideTab === "translate" ? (
+              <div className="side-section">
+                <div className="translation-box">
+                  {busy ? "翻译中..." : translation || " "}
+                </div>
+              </div>
+            ) : null}
+
+            {sideTab === "ai" ? (
+              <div className="side-section ai-panel">
+                <div className="message-list">
+                  {messages.map((message) => (
+                    <div key={message.id} className={`message ${message.role}`}>
+                      {message.content}
+                    </div>
+                  ))}
+                </div>
+
+                <label className="checkbox-row compact">
+                  <input
+                    type="checkbox"
+                    checked={useWebSearch}
+                    onChange={(event) => setUseWebSearch(event.target.checked)}
+                  />
+                  <Search size={15} />
+                  Web search
+                </label>
+
+                <div className="chat-input">
                   <textarea
-                    value={noteDraft}
-                    onChange={(event) => setNoteDraft(event.target.value)}
+                    value={aiInput}
+                    onChange={(event) => setAiInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                        void sendChat();
+                      }
+                    }}
                   />
                   <button
                     className="primary-button"
-                    onClick={() => void createHighlight("note", noteDraft)}
-                    disabled={!noteDraft.trim()}
+                    onClick={() => void sendChat()}
+                    disabled={busy}
                   >
-                    <Save size={16} />
-                    保存 Note
+                    <MessageSquare size={16} />
+                    发送
                   </button>
                 </div>
-              ) : null}
-
-              <div className="annotation-list">
-                {annotations.map((annotation) => (
-                  <article key={annotation.id} className="annotation-item">
-                    <button
-                      className="annotation-jump"
-                      onClick={() => renditionRef.current?.display?.(annotation.cfiRange)}
-                    >
-                      <span className="annotation-type">
-                        {annotation.type === "note" ? "Note" : "Highlight"}
-                      </span>
-                      <span>{annotation.selectedText}</span>
-                      {annotation.noteText ? <strong>{annotation.noteText}</strong> : null}
-                    </button>
-                    <button
-                      className="icon-button small"
-                      title="删除"
-                      onClick={() => void removeAnnotation(annotation)}
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </article>
-                ))}
               </div>
-            </div>
-          ) : null}
-
-          {sideTab === "translate" ? (
-            <div className="side-section">
-              <div className="translation-box">
-                {busy ? "翻译中..." : translation || " "}
-              </div>
-            </div>
-          ) : null}
-
-          {sideTab === "ai" ? (
-            <div className="side-section ai-panel">
-              <div className="message-list">
-                {messages.map((message) => (
-                  <div key={message.id} className={`message ${message.role}`}>
-                    {message.content}
-                  </div>
-                ))}
-              </div>
-
-              <label className="checkbox-row compact">
-                <input
-                  type="checkbox"
-                  checked={useWebSearch}
-                  onChange={(event) => setUseWebSearch(event.target.checked)}
-                />
-                <Search size={15} />
-                Web search
-              </label>
-
-              <div className="chat-input">
-                <textarea
-                  value={aiInput}
-                  onChange={(event) => setAiInput(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                      void sendChat();
-                    }
-                  }}
-                />
-                <button className="primary-button" onClick={() => void sendChat()} disabled={busy}>
-                  <MessageSquare size={16} />
-                  发送
-                </button>
-              </div>
-            </div>
-          ) : null}
-        </aside>
+            ) : null}
+          </aside>
+        ) : null}
       </div>
     </section>
   );
@@ -555,6 +589,54 @@ function formatReaderError(label: string, reason: unknown): string {
     return `${label}: ${reason.message}`;
   }
   return `${label}: ${String(reason)}`;
+}
+
+function getToolbarPosition(
+  contents: any,
+  bookPane: HTMLDivElement | null
+): ActiveSelection["toolbarPosition"] {
+  const range = getSelectedRange(contents);
+  const frame = contents?.document?.defaultView?.frameElement as HTMLElement | null;
+
+  if (!range || !frame || !bookPane) {
+    return undefined;
+  }
+
+  const selectionRect = getReadableRangeRect(range);
+  if (!selectionRect) {
+    return undefined;
+  }
+
+  const frameRect = frame.getBoundingClientRect();
+  const paneRect = bookPane.getBoundingClientRect();
+  const rawLeft = frameRect.left + selectionRect.left - paneRect.left + selectionRect.width / 2;
+  const rawTop = frameRect.top + selectionRect.top - paneRect.top;
+  const horizontalInset = Math.min(290, Math.max(24, paneRect.width / 2 - 12));
+
+  return {
+    left: clamp(rawLeft, horizontalInset, paneRect.width - horizontalInset),
+    top: Math.max(58, rawTop)
+  };
+}
+
+function getSelectedRange(contents: any): Range | null {
+  const selection = contents?.window?.getSelection?.();
+  if (!selection || selection.rangeCount === 0) {
+    return null;
+  }
+  return selection.getRangeAt(0);
+}
+
+function getReadableRangeRect(range: Range): DOMRect | null {
+  const rects = Array.from(range.getClientRects());
+  return (
+    rects.find((rect) => rect.width > 0 && rect.height > 0) ??
+    (range.getBoundingClientRect().width > 0 ? range.getBoundingClientRect() : null)
+  );
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
 }
 
 function getInitialSideTab(): SideTab {

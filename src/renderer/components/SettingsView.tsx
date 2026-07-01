@@ -172,7 +172,7 @@ export function SettingsView({
                     type="password"
                     placeholder={
                       selectedProvider.apiKeyStored
-                        ? t("settings.apiKeyStored")
+                        ? t("settings.apiKeyMasked")
                         : t("settings.apiKeyMissing")
                     }
                     onChange={(event) =>

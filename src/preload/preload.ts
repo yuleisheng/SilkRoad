@@ -1,8 +1,11 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { randomUUID } from "node:crypto";
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import type {
   AnnotationInput,
   AppSettings,
   ChatRequest,
+  ChatStreamEvent,
+  ChatStreamHandlers,
   ImportAnnotationsPayload,
   ProviderKind,
   SilkRoadAPI,
@@ -38,6 +41,65 @@ const api: SilkRoadAPI = {
   },
   ai: {
     chat: (request: ChatRequest) => ipcRenderer.invoke("ai:chat", request),
+    streamChat: (request: ChatRequest, handlers: ChatStreamHandlers) => {
+      const streamId = randomUUID();
+      const channel = `ai:chat:stream:${streamId}`;
+      let completed = false;
+      let listener: (event: IpcRendererEvent, payload: ChatStreamEvent) => void;
+
+      const removeListener = () => {
+        ipcRenderer.removeListener(channel, listener);
+      };
+
+      listener = (_event: IpcRendererEvent, payload: ChatStreamEvent) => {
+        if (payload.type === "search-results") {
+          handlers.onSearchResults?.(payload.searchResults);
+          return;
+        }
+
+        if (payload.type === "delta") {
+          handlers.onDelta?.(payload.delta);
+          return;
+        }
+
+        completed = true;
+        removeListener();
+
+        if (payload.type === "done") {
+          handlers.onDone?.(payload.response);
+          return;
+        }
+
+        handlers.onError?.(payload.message);
+      };
+
+      ipcRenderer.on(channel, listener);
+      void ipcRenderer
+        .invoke("ai:chat:stream", streamId, request)
+        .then(() => {
+          if (!completed) {
+            completed = true;
+            removeListener();
+            handlers.onError?.("Chat stream ended before a response was returned.");
+          }
+        })
+        .catch((error) => {
+          if (completed) {
+            return;
+          }
+          completed = true;
+          removeListener();
+          handlers.onError?.(error instanceof Error ? error.message : String(error));
+        });
+
+      return () => {
+        removeListener();
+        if (!completed) {
+          completed = true;
+          ipcRenderer.send("ai:chat:stream:cancel", streamId);
+        }
+      };
+    },
     translate: (request: TranslateRequest) => ipcRenderer.invoke("ai:translate", request)
   },
   translation: {

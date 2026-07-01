@@ -65,6 +65,7 @@ export function ReaderView({
   const contentsPointerCleanupRef = useRef<(() => void) | null>(null);
   const translationRequestIdRef = useRef(0);
   const systemTranslationVisibleRef = useRef(false);
+  const chatStreamCleanupRef = useRef<(() => void) | null>(null);
   const isMockReader = book.readerUrl.startsWith("mock-book://");
   const [annotations, setAnnotations] = useState<AnnotationRecord[]>([]);
   const [selection, setSelection] = useState<ActiveSelection | null>(null);
@@ -115,6 +116,14 @@ export function ReaderView({
   useEffect(
     () => () => {
       dismissSystemTranslation();
+    },
+    []
+  );
+
+  useEffect(
+    () => () => {
+      chatStreamCleanupRef.current?.();
+      chatStreamCleanupRef.current = null;
     },
     []
   );
@@ -369,29 +378,95 @@ export function ReaderView({
       return;
     }
 
+    chatStreamCleanupRef.current?.();
+    chatStreamCleanupRef.current = null;
+
+    const createdAt = new Date().toISOString();
+    const readerContext = getReaderContext();
+    const selectedText = selection?.text.trim();
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: "user",
       content,
-      createdAt: new Date().toISOString()
+      createdAt,
+      selectionContext: selectedText
+        ? {
+            selectedText,
+            bookTitle: book.title
+          }
+        : undefined
+    };
+    const assistantId = crypto.randomUUID();
+    const assistantMessage: ChatMessage = {
+      id: assistantId,
+      role: "assistant",
+      content: "",
+      createdAt: new Date().toISOString(),
+      status: "streaming"
     };
     const nextMessages = [...messages, userMessage];
-    setMessages(nextMessages);
+    setMessages([...nextMessages, assistantMessage]);
     setAiInput("");
     setBusy(true);
     setError(null);
     setSideTab("ai");
+    dismissSelectionUi({ clearContext: true });
 
     try {
-      const response = await window.silkroad.ai.chat({
-        messages: nextMessages,
-        context: getReaderContext(),
-        providerId: settings.defaultChatProvider
-      });
-      setMessages((current) => [...current, response.message]);
+      let streamedContent = "";
+      chatStreamCleanupRef.current = window.silkroad.ai.streamChat(
+        {
+          messages: nextMessages,
+          context: readerContext,
+          providerId: settings.defaultChatProvider
+        },
+        {
+          onDelta: (delta) => {
+            streamedContent += delta;
+            setMessages((current) =>
+              current.map((message) =>
+                message.id === assistantId
+                  ? { ...message, content: streamedContent, status: "streaming" }
+                  : message
+              )
+            );
+          },
+          onDone: (response) => {
+            chatStreamCleanupRef.current = null;
+            setMessages((current) =>
+              current.map((message) =>
+                message.id === assistantId
+                  ? {
+                      ...response.message,
+                      id: assistantId,
+                      content: response.message.content || streamedContent,
+                      status: "complete"
+                    }
+                  : message
+              )
+            );
+            setBusy(false);
+          },
+          onError: (message) => {
+            chatStreamCleanupRef.current = null;
+            setError(message);
+            setMessages((current) =>
+              current.map((item) =>
+                item.id === assistantId
+                  ? {
+                      ...item,
+                      content: message,
+                      status: "error"
+                    }
+                  : item
+              )
+            );
+            setBusy(false);
+          }
+        }
+      );
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
-    } finally {
       setBusy(false);
     }
   }
@@ -671,9 +746,34 @@ export function ReaderView({
               <div className="side-section ai-panel">
                 <div className="message-list">
                   {messages.map((message) => (
-                    <div key={message.id} className={`message ${message.role}`}>
-                      {message.content}
-                    </div>
+                    <article key={message.id} className={`message-row ${message.role}`}>
+                      {message.selectionContext ? (
+                        <div className="message-context-card">
+                          <div className="message-context-label">
+                            <MessageSquare size={14} />
+                            <span>{t("reader.selectionChip")}</span>
+                          </div>
+                          <div className="message-context-text">
+                            “{message.selectionContext.selectedText}”
+                          </div>
+                        </div>
+                      ) : null}
+                      <div
+                        className={`message ${message.role} ${
+                          message.status ?? ""
+                        }`.trim()}
+                      >
+                        {message.status === "streaming" && !message.content ? (
+                          <span className="typing-indicator">
+                            <span />
+                            <span />
+                            <span />
+                          </span>
+                        ) : (
+                          message.content
+                        )}
+                      </div>
+                    </article>
                   ))}
                 </div>
 

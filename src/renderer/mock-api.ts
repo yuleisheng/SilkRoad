@@ -194,6 +194,59 @@ function createMockApi(): SilkRoadAPI {
           }
         };
       },
+      streamChat: (request, handlers) => {
+        let cancelled = false;
+        const userMessage = request.messages
+          .filter((message: ChatMessage) => message.role === "user")
+          .at(-1);
+        const providerId = request.providerId ?? settings.defaultChatProvider;
+        const usesSearch =
+          ["openrouter", "ollama-cloud"].includes(providerId) &&
+          shouldUseWebSearch(userMessage?.content ?? "");
+        const searchResults = usesSearch
+          ? [
+              {
+                title: "Demo search result",
+                url: "https://example.com/silk-road",
+                snippet: "A compact source summary appears here.",
+                source: "injected" as const
+              }
+            ]
+          : [];
+        const content = `I would connect this passage to the chapter's larger theme: ${
+          userMessage?.content || "the selected text"
+        }.`;
+        const chunks = content.match(/.{1,12}/g) ?? [content];
+
+        if (searchResults.length) {
+          handlers.onSearchResults?.(searchResults);
+        }
+
+        chunks.forEach((chunk, index) => {
+          window.setTimeout(() => {
+            if (cancelled) {
+              return;
+            }
+            handlers.onDelta?.(chunk);
+            if (index === chunks.length - 1) {
+              handlers.onDone?.({
+                searchResults,
+                message: {
+                  id: crypto.randomUUID(),
+                  role: "assistant",
+                  content,
+                  createdAt: new Date().toISOString(),
+                  status: "complete"
+                }
+              });
+            }
+          }, 80 * (index + 1));
+        });
+
+        return () => {
+          cancelled = true;
+        };
+      },
       translate: async (request) => ({
         providerId: request.providerId ?? settings.defaultChatProvider,
         text: "这段文字会在这里显示成翻译结果。"

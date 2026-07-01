@@ -10,6 +10,7 @@ import type {
   ChatMessage,
   ChatRequest,
   ChatResponse,
+  ChatStreamEvent,
   ProviderHealth,
   ProviderKind,
   SearchResult,
@@ -76,6 +77,22 @@ export class ProviderManager {
   }
 
   async chat(request: ChatRequest): Promise<ChatResponse> {
+    let response: ChatResponse | null = null;
+
+    for await (const event of this.streamChat(request)) {
+      if (event.type === "done") {
+        response = event.response;
+      }
+    }
+
+    if (!response) {
+      throw new Error("Chat provider did not return a response.");
+    }
+
+    return response;
+  }
+
+  async *streamChat(request: ChatRequest): AsyncIterable<ChatStreamEvent> {
     const settings = this.getSettings();
     const providerId = request.providerId ?? settings.defaultChatProvider;
     const providerSettings = settings.providers[providerId];
@@ -91,25 +108,37 @@ export class ProviderManager {
       searchQuery
     );
 
-    const messages = buildMessages(request.messages, request.context, searchResults);
-    const text = await collectStream(
-      provider.streamChat(
-        {
-          webSearchEnabled: this.shouldUseProviderNativeWebSearch(providerId, searchQuery),
-          messages
-        },
-        providerSettings
-      )
-    );
+    if (searchResults.length) {
+      yield { type: "search-results", searchResults };
+    }
 
-    return {
-      message: {
-        id: randomUUID(),
-        role: "assistant",
-        content: text,
-        createdAt: new Date().toISOString()
+    const messages = buildMessages(request.messages, request.context, searchResults);
+    let text = "";
+    for await (const delta of provider.streamChat(
+      {
+        webSearchEnabled: this.shouldUseProviderNativeWebSearch(providerId, searchQuery),
+        messages
       },
-      searchResults
+      providerSettings
+    )) {
+      text += delta;
+      if (delta) {
+        yield { type: "delta", delta };
+      }
+    }
+
+    yield {
+      type: "done",
+      response: {
+        message: {
+          id: randomUUID(),
+          role: "assistant",
+          content: text,
+          createdAt: new Date().toISOString(),
+          status: "complete"
+        },
+        searchResults
+      }
     };
   }
 

@@ -75,6 +75,13 @@ export interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
   createdAt: string;
+  selectionContext?: ChatSelectionContext;
+  status?: "streaming" | "complete" | "error";
+}
+
+export interface ChatSelectionContext {
+  selectedText: string;
+  bookTitle?: string;
 }
 
 export interface SearchResult {
@@ -99,6 +106,19 @@ export interface ChatRequest {
 export interface ChatResponse {
   message: ChatMessage;
   searchResults: SearchResult[];
+}
+
+export type ChatStreamEvent =
+  | { type: "search-results"; searchResults: SearchResult[] }
+  | { type: "delta"; delta: string }
+  | { type: "done"; response: ChatResponse }
+  | { type: "error"; message: string };
+
+export interface ChatStreamHandlers {
+  onSearchResults?(searchResults: SearchResult[]): void;
+  onDelta?(delta: string): void;
+  onDone?(response: ChatResponse): void;
+  onError?(message: string): void;
 }
 
 export interface TranslateRequest {
@@ -164,6 +184,7 @@ export interface SilkRoadAPI {
   };
   ai: {
     chat(request: ChatRequest): Promise<ChatResponse>;
+    streamChat(request: ChatRequest, handlers: ChatStreamHandlers): () => void;
     translate(request: TranslateRequest): Promise<TranslateResponse>;
   };
   translation?: {

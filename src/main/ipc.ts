@@ -6,6 +6,7 @@ import type {
   AnnotationInput,
   AppSettings,
   ChatRequest,
+  ChatStreamEvent,
   ImportAnnotationsPayload,
   ProviderKind,
   TranslateRequest
@@ -126,6 +127,42 @@ export function registerIpcHandlers(
 
   ipcMain.handle("ai:chat", (_event, request: ChatRequest) =>
     providerManager.chat(request)
+  );
+
+  const activeChatStreams = new Set<string>();
+
+  ipcMain.on("ai:chat:stream:cancel", (_event, streamId: string) => {
+    activeChatStreams.delete(streamId);
+  });
+
+  ipcMain.handle(
+    "ai:chat:stream",
+    async (event, streamId: string, request: ChatRequest) => {
+      const channel = `ai:chat:stream:${streamId}`;
+      activeChatStreams.add(streamId);
+
+      const send = (payload: ChatStreamEvent) => {
+        if (!event.sender.isDestroyed() && activeChatStreams.has(streamId)) {
+          event.sender.send(channel, payload);
+        }
+      };
+
+      try {
+        for await (const payload of providerManager.streamChat(request)) {
+          send(payload);
+          if (!activeChatStreams.has(streamId)) {
+            break;
+          }
+        }
+      } catch (error) {
+        send({
+          type: "error",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      } finally {
+        activeChatStreams.delete(streamId);
+      }
+    }
   );
 }
 

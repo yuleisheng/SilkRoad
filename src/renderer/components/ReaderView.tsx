@@ -10,8 +10,7 @@ import {
   Save,
   Search,
   StickyNote,
-  Trash2,
-  X
+  Trash2
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type {
@@ -43,12 +42,16 @@ type SideTab = "annotations" | "translate" | "ai";
 
 export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderViewProps) {
   const bookPaneRef = useRef<HTMLDivElement | null>(null);
+  const selectionToolbarRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<HTMLDivElement | null>(null);
   const renditionRef = useRef<any>(null);
   const epubRef = useRef<any>(null);
+  const activeContentsRef = useRef<any>(null);
+  const contentsPointerCleanupRef = useRef<(() => void) | null>(null);
   const isMockReader = book.readerUrl.startsWith("mock-book://");
   const [annotations, setAnnotations] = useState<AnnotationRecord[]>([]);
   const [selection, setSelection] = useState<ActiveSelection | null>(null);
+  const [selectionUiVisible, setSelectionUiVisible] = useState(false);
   const [currentChapterText, setCurrentChapterText] = useState("");
   const [sideTab, setSideTab] = useState<SideTab>(getInitialSideTab);
   const [sidePanelOpen, setSidePanelOpen] = useState(true);
@@ -64,10 +67,37 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
   );
 
   useEffect(() => {
+    function handleDocumentPointerDown(event: PointerEvent) {
+      if (!selection) {
+        return;
+      }
+
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      if (selectionToolbarRef.current?.contains(target)) {
+        return;
+      }
+
+      dismissSelectionUi({
+        clearContext: !target.closest(".reader-side")
+      });
+    }
+
+    document.addEventListener("pointerdown", handleDocumentPointerDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", handleDocumentPointerDown, true);
+    };
+  }, [selection]);
+
+  useEffect(() => {
     let disposed = false;
 
     async function bootReader() {
       if (isMockReader) {
+        dismissSelectionUi({ clearContext: true });
         setReaderStatus("loading");
         const storedAnnotations = await window.silkroad.annotations.list(book.id);
         const initialTab = getInitialSideTab();
@@ -83,6 +113,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
           chapterText: DEMO_CHAPTER_TEXT,
           toolbarPosition: { left: 430, top: 438 }
         });
+        setSelectionUiVisible(true);
         setSideTab(initialTab);
         if (initialTab === "translate") {
           setTranslation("【简体中文】一条道路也是一种注意力的习惯。");
@@ -114,7 +145,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
 
       setError(null);
       setReaderStatus("loading");
-      setSelection(null);
+      dismissSelectionUi({ clearContext: true });
       setTranslation("");
       setCurrentChapterText("");
       viewerRef.current.innerHTML = "";
@@ -176,7 +207,10 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
         const toolbarPosition = getToolbarPosition(contents, bookPaneRef.current);
 
         if (selectedText) {
+          activeContentsRef.current = contents;
+          trackContentsPointerDismiss(contents);
           setSelection({ cfiRange, text: selectedText, chapterText, toolbarPosition });
+          setSelectionUiVisible(true);
           setCurrentChapterText(chapterText);
         }
       });
@@ -207,6 +241,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
 
     return () => {
       disposed = true;
+      clearSelectionTracking();
       renditionRef.current?.destroy?.();
       epubRef.current?.destroy?.();
       renditionRef.current = null;
@@ -229,7 +264,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
     });
     setAnnotations((current) => [...current, annotation]);
     paintAnnotation(annotation);
-    setSelection(null);
+    dismissSelectionUi({ clearContext: true });
     setNoteDraft("");
   }
 
@@ -248,6 +283,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
     setError(null);
     setSideTab("translate");
     setSidePanelOpen(true);
+    dismissSelectionUi();
     try {
       const response = await window.silkroad.ai.translate({
         text: selection.text,
@@ -332,6 +368,48 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
   function openSideTab(tab: SideTab) {
     setSideTab(tab);
     setSidePanelOpen(true);
+    dismissSelectionUi();
+  }
+
+  function dismissSelectionUi({ clearContext = false } = {}) {
+    clearNativeSelection();
+    setSelectionUiVisible(false);
+
+    if (clearContext) {
+      setSelection(null);
+      setNoteDraft("");
+      clearSelectionTracking();
+    }
+  }
+
+  function clearNativeSelection() {
+    activeContentsRef.current?.window?.getSelection?.()?.removeAllRanges?.();
+    window.getSelection()?.removeAllRanges?.();
+  }
+
+  function clearSelectionTracking() {
+    contentsPointerCleanupRef.current?.();
+    contentsPointerCleanupRef.current = null;
+    activeContentsRef.current = null;
+  }
+
+  function trackContentsPointerDismiss(contents: any) {
+    contentsPointerCleanupRef.current?.();
+
+    const documentElement = contents?.document;
+    if (!documentElement?.addEventListener) {
+      contentsPointerCleanupRef.current = null;
+      return;
+    }
+
+    const handleContentsPointerDown = () => {
+      dismissSelectionUi({ clearContext: true });
+    };
+
+    documentElement.addEventListener("pointerdown", handleContentsPointerDown, true);
+    contentsPointerCleanupRef.current = () => {
+      documentElement.removeEventListener("pointerdown", handleContentsPointerDown, true);
+    };
   }
 
   return (
@@ -354,8 +432,9 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
             <div className="reader-loading">Loading EPUB...</div>
           ) : null}
           {error ? <div className="reader-error">{error}</div> : null}
-          {selection ? (
+          {selection && selectionUiVisible ? (
             <div
+              ref={selectionToolbarRef}
               className={`selection-toolbar${
                 selection.toolbarPosition ? " positioned" : ""
               }`}
@@ -383,9 +462,6 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
               <button onClick={() => openSideTab("ai")}>
                 <MessageSquare size={16} />
                 AI
-              </button>
-              <button className="icon-only" title="关闭" onClick={() => setSelection(null)}>
-                <X size={16} />
               </button>
             </div>
           ) : null}

@@ -597,12 +597,6 @@ textarea:focus {
   color: var(--accent-strong);
 }
 
-.selection-toolbar .icon-only {
-  width: 32px;
-  padding: 0;
-  justify-content: center;
-}
-
 .page-controls {
   position: absolute;
   z-index: 9;

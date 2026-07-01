@@ -30,8 +30,12 @@ export function LibraryView({ books, t, onImport, onOpenBook }: LibraryViewProps
             className="book-tile"
             onClick={() => onOpenBook(book)}
           >
-            <span className="book-cover">
-              <BookOpen size={34} />
+            <span className={book.coverImageUrl ? "book-cover has-image" : "book-cover"}>
+              {book.coverImageUrl ? (
+                <img src={book.coverImageUrl} alt="" />
+              ) : (
+                <BookOpen size={34} />
+              )}
             </span>
             <span className="book-title">{book.title}</span>
             <span className="book-author">{book.author || book.fileName}</span>

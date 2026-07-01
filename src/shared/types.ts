@@ -16,6 +16,7 @@ export interface BookRecord {
   fileName: string;
   filePath?: string;
   readerUrl: string;
+  coverImageUrl?: string;
   addedAt: string;
   lastOpenedAt?: string;
 }

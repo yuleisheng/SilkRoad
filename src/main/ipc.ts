@@ -1,5 +1,5 @@
 import { dialog, ipcMain } from "electron";
-import { copyFileSync } from "node:fs";
+import { copyFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type {
@@ -19,13 +19,17 @@ import {
   translateWithAppleSystem
 } from "./system-translation";
 import { getTranslator } from "../shared/i18n";
+import { extractEpubMetadata, type ExtractedEpubMetadata } from "./epub-metadata";
 
 export function registerIpcHandlers(
   database: LibraryDatabase,
   providerManager: ProviderManager,
   appPaths: AppPaths
 ): void {
-  ipcMain.handle("books:list", () => database.listBooks());
+  ipcMain.handle("books:list", async () => {
+    await backfillMissingCovers(database, appPaths);
+    return database.listBooks();
+  });
 
   ipcMain.handle("books:import", async () => {
     const t = getTranslator(database.getSettings().appLanguage);
@@ -45,12 +49,17 @@ export function registerIpcHandlers(
     const destinationPath = path.join(appPaths.booksDir, fileName);
     copyFileSync(sourcePath, destinationPath);
 
+    const importMetadata = await safeExtractEpubMetadata(destinationPath);
+    const coverPath = saveExtractedCover(id, importMetadata, appPaths);
+
     const originalName = path.basename(sourcePath, path.extname(sourcePath));
     return database.createBook({
       id,
-      title: originalName,
+      title: importMetadata.title || originalName,
+      author: importMetadata.author,
       fileName,
-      filePath: destinationPath
+      filePath: destinationPath,
+      coverPath
     });
   });
 
@@ -164,6 +173,45 @@ export function registerIpcHandlers(
       }
     }
   );
+}
+
+async function backfillMissingCovers(
+  database: LibraryDatabase,
+  appPaths: AppPaths
+): Promise<void> {
+  for (const book of database.listBooksMissingCovers()) {
+    const importMetadata = await safeExtractEpubMetadata(book.filePath);
+    const coverPath = saveExtractedCover(book.id, importMetadata, appPaths);
+    database.updateBookCoverPath(book.id, coverPath ?? "");
+  }
+}
+
+function saveExtractedCover(
+  bookId: string,
+  metadata: ExtractedEpubMetadata,
+  appPaths: AppPaths
+): string | undefined {
+  if (!metadata.cover) {
+    return undefined;
+  }
+
+  const coverPath = path.join(appPaths.coversDir, `${bookId}${metadata.cover.extension}`);
+  writeFileSync(coverPath, metadata.cover.data);
+  return coverPath;
+}
+
+async function safeExtractEpubMetadata(
+  epubPath: string
+): Promise<ExtractedEpubMetadata> {
+  try {
+    return await extractEpubMetadata(epubPath);
+  } catch (error) {
+    console.warn(
+      "SilkRoad EPUB metadata extraction failed:",
+      error instanceof Error ? error.message : error
+    );
+    return {};
+  }
 }
 
 function formatSystemTranslationError(error: unknown): string {

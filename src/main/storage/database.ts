@@ -13,7 +13,10 @@ import { DEFAULT_SETTINGS } from "../../shared/default-settings";
 import { isAppLanguage } from "../../shared/i18n";
 import { decryptSecret, encryptSecret } from "../security/secure-store";
 
-type BookRow = Omit<BookRecord, "readerUrl"> & { readerUrl?: string };
+type BookRow = Omit<BookRecord, "readerUrl" | "coverImageUrl"> & {
+  readerUrl?: string;
+  coverPath?: string | null;
+};
 type SettingsRow = { key: string; value: string };
 
 export interface ResolvedProviderSettings extends ProviderSettings {
@@ -37,6 +40,7 @@ export class LibraryDatabase {
     const rows = this.db
       .prepare(
         `select id, title, author, fileName, filePath, addedAt, lastOpenedAt
+                , coverPath
          from books
          order by coalesce(lastOpenedAt, addedAt) desc`
       )
@@ -45,10 +49,17 @@ export class LibraryDatabase {
     return rows.map(this.toPublicBook);
   }
 
+  listBooksMissingCovers(): Array<{ id: string; filePath: string }> {
+    return this.db
+      .prepare("select id, filePath from books where coverPath is null")
+      .all() as Array<{ id: string; filePath: string }>;
+  }
+
   getBook(bookId: string): BookRecord | null {
     const row = this.db
       .prepare(
         `select id, title, author, fileName, filePath, addedAt, lastOpenedAt
+                , coverPath
          from books
          where id = ?`
       )
@@ -64,20 +75,34 @@ export class LibraryDatabase {
     return row?.filePath ?? null;
   }
 
+  getBookCoverFilePath(bookId: string): string | null {
+    const row = this.db
+      .prepare("select coverPath from books where id = ?")
+      .get(bookId) as { coverPath: string | null } | undefined;
+    return row?.coverPath ?? null;
+  }
+
+  updateBookCoverPath(bookId: string, coverPath: string): void {
+    this.db
+      .prepare("update books set coverPath = @coverPath where id = @bookId")
+      .run({ bookId, coverPath });
+  }
+
   createBook(input: {
     id?: string;
     title: string;
     author?: string;
     fileName: string;
     filePath: string;
+    coverPath?: string;
   }): BookRecord {
     const now = new Date().toISOString();
     const id = input.id ?? randomUUID();
 
     this.db
       .prepare(
-        `insert into books (id, title, author, fileName, filePath, addedAt, lastOpenedAt)
-         values (@id, @title, @author, @fileName, @filePath, @addedAt, @lastOpenedAt)`
+        `insert into books (id, title, author, fileName, filePath, coverPath, addedAt, lastOpenedAt)
+         values (@id, @title, @author, @fileName, @filePath, @coverPath, @addedAt, @lastOpenedAt)`
       )
       .run({
         id,
@@ -85,6 +110,7 @@ export class LibraryDatabase {
         author: input.author ?? null,
         fileName: input.fileName,
         filePath: input.filePath,
+        coverPath: input.coverPath ?? "",
         addedAt: now,
         lastOpenedAt: now
       });
@@ -276,6 +302,7 @@ export class LibraryDatabase {
         author text,
         fileName text not null,
         filePath text not null,
+        coverPath text,
         addedAt text not null,
         lastOpenedAt text
       );
@@ -322,6 +349,17 @@ export class LibraryDatabase {
         foreign key(conversationId) references conversations(id) on delete cascade
       );
     `);
+
+    this.addColumnIfMissing("books", "coverPath", "text");
+  }
+
+  private addColumnIfMissing(tableName: string, columnName: string, columnType: string): void {
+    const columns = this.db.prepare(`pragma table_info(${tableName})`).all() as Array<{
+      name: string;
+    }>;
+    if (!columns.some((column) => column.name === columnName)) {
+      this.db.prepare(`alter table ${tableName} add column ${columnName} ${columnType}`).run();
+    }
   }
 
   private toPublicBook(row: BookRow): BookRecord {
@@ -331,6 +369,9 @@ export class LibraryDatabase {
       author: row.author,
       fileName: row.fileName,
       readerUrl: `silkroad-book://book/${encodeURIComponent(row.id)}.epub`,
+      coverImageUrl: row.coverPath
+        ? `silkroad-book://cover/${encodeURIComponent(row.id)}`
+        : undefined,
       addedAt: row.addedAt,
       lastOpenedAt: row.lastOpenedAt
     };

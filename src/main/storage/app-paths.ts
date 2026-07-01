@@ -6,21 +6,25 @@ export interface AppPaths {
   userDataDir: string;
   databasePath: string;
   booksDir: string;
+  coversDir: string;
   exportsDir: string;
 }
 
 export function getAppPaths(): AppPaths {
   const userDataDir = app.getPath("userData");
   const booksDir = path.join(userDataDir, "books");
+  const coversDir = path.join(userDataDir, "covers");
   const exportsDir = path.join(userDataDir, "exports");
 
   mkdirSync(booksDir, { recursive: true });
+  mkdirSync(coversDir, { recursive: true });
   mkdirSync(exportsDir, { recursive: true });
 
   return {
     userDataDir,
     databasePath: path.join(userDataDir, "silkroad.sqlite3"),
     booksDir,
+    coversDir,
     exportsDir
   };
 }

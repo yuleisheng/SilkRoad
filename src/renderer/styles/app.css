@@ -563,10 +563,11 @@ textarea:focus {
   z-index: 10;
   top: 12px;
   left: 50%;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  max-width: calc(100% - 24px);
-  flex-wrap: wrap;
+  width: max-content;
+  max-width: none;
+  flex-wrap: nowrap;
   gap: 6px;
   padding: 6px;
   border: 1px solid var(--border);
@@ -582,6 +583,7 @@ textarea:focus {
 
 .selection-toolbar button {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 6px;
   height: 32px;
@@ -755,6 +757,60 @@ textarea:focus {
   gap: 10px;
   min-height: 180px;
   overflow: auto;
+}
+
+.ai-context {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
+
+.ai-context-quote {
+  max-width: 100%;
+  padding: 9px 14px;
+  border: 1px solid rgba(222, 219, 211, 0.9);
+  border-radius: 18px;
+  color: var(--text);
+  background: rgba(255, 253, 249, 0.96);
+  box-shadow: 0 6px 18px rgba(29, 27, 46, 0.08);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-context-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  max-width: 100%;
+  padding: 0 8px 0 12px;
+  border: 1px solid rgba(222, 219, 211, 0.9);
+  border-radius: 18px;
+  color: var(--text);
+  background: rgba(255, 253, 249, 0.92);
+  box-shadow: 0 6px 18px rgba(29, 27, 46, 0.06);
+}
+
+.ai-context-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-context-clear {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  color: var(--text);
+  background: transparent;
+}
+
+.ai-context-clear:hover {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
 }
 
 .message {

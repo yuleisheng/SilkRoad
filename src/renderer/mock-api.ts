@@ -47,7 +47,7 @@ let settings: AppSettings = {
     },
     "ollama-cloud": {
       ...DEFAULT_SETTINGS.providers["ollama-cloud"],
-      model: "gpt-oss:20b-cloud",
+      model: "glm-5.2",
       apiKeyStored: true
     }
   }

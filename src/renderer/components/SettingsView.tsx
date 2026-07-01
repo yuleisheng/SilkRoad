@@ -24,6 +24,7 @@ export function SettingsView({
   const [draft, setDraft] = useState<AppSettings>(settings);
   const [health, setHealth] = useState<Partial<Record<ProviderKind, ProviderHealth>>>({});
   const [saving, setSaving] = useState(false);
+  const [checkingProvider, setCheckingProvider] = useState<ProviderKind | null>(null);
   const t = getTranslator(draft.appLanguage);
   const selectedProviderId = draft.defaultChatProvider;
   const selectedProvider = draft.providers[selectedProviderId];
@@ -54,11 +55,16 @@ export function SettingsView({
   }
 
   async function validate(providerId: ProviderKind) {
-    const saved = await window.silkroad.settings.update(draft);
-    setDraft(saved);
-    onSettingsChange(saved);
-    const result = await window.silkroad.settings.validate(providerId);
-    setHealth((current) => ({ ...current, [providerId]: result }));
+    setCheckingProvider(providerId);
+    try {
+      const saved = await window.silkroad.settings.update(draft);
+      setDraft(saved);
+      onSettingsChange(saved);
+      const result = await window.silkroad.settings.validate(providerId);
+      setHealth((current) => ({ ...current, [providerId]: result }));
+    } finally {
+      setCheckingProvider(null);
+    }
   }
 
   return (
@@ -184,9 +190,12 @@ export function SettingsView({
               <button
                 className="secondary-button"
                 onClick={() => void validate(selectedProviderId)}
+                disabled={checkingProvider === selectedProviderId}
               >
                 <ShieldCheck size={16} />
-                {t("settings.check")}
+                {checkingProvider === selectedProviderId
+                  ? t("settings.checking")
+                  : t("settings.check")}
               </button>
               {selectedProviderHealth ? (
                 <span className={selectedProviderHealth.ok ? "health ok" : "health fail"}>

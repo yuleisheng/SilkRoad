@@ -16,10 +16,26 @@ export class OllamaCloudProvider implements ChatProvider, SearchProvider {
 
   async validateSettings(settings: ProviderSettings) {
     try {
-      assertApiKey(settings);
-      assertModel(settings);
-      new URL(settings.baseUrl || OLLAMA_BASE_URL);
-      return { ok: true, message: "Ollama Cloud settings look ready." };
+      const apiKey = assertApiKey(settings);
+      const model = assertModel(settings);
+      const baseUrl = normalizeOllamaBaseUrl(settings.baseUrl);
+      new URL(baseUrl);
+
+      const availableModels = await listCloudModels(baseUrl, apiKey);
+      if (availableModels.includes(model)) {
+        return {
+          ok: true,
+          message: `Connected to Ollama Cloud. Model "${model}" is available.`
+        };
+      }
+
+      const suggestedModel = getDirectApiModelSuggestion(model, availableModels);
+      return {
+        ok: false,
+        message: suggestedModel
+          ? `Model "${model}" was not found. For direct https://ollama.com API access, try "${suggestedModel}".`
+          : `Connected to Ollama Cloud, but model "${model}" was not found.`
+      };
     } catch (error) {
       return {
         ok: false,
@@ -114,5 +130,39 @@ export class OllamaCloudProvider implements ChatProvider, SearchProvider {
 }
 
 export function normalizeOllamaBaseUrl(baseUrl?: string): string {
-  return (baseUrl || OLLAMA_BASE_URL).replace(/\/+$/, "");
+  const normalized = (baseUrl || OLLAMA_BASE_URL).replace(/\/+$/, "");
+  return normalized.endsWith("/api") ? normalized.slice(0, -4) : normalized;
+}
+
+async function listCloudModels(baseUrl: string, apiKey: string): Promise<string[]> {
+  const response = await fetch(`${baseUrl}/api/tags`, {
+    headers: {
+      authorization: `Bearer ${apiKey}`
+    }
+  });
+
+  await assertOkResponse(response);
+  const payload = (await response.json()) as {
+    models?: Array<{ name?: string; model?: string }>;
+  };
+
+  return (payload.models ?? [])
+    .flatMap((model) => [model.name, model.model])
+    .filter((name): name is string => Boolean(name));
+}
+
+function getDirectApiModelSuggestion(
+  model: string,
+  availableModels: string[]
+): string | null {
+  const cloudSuffixPatterns = [/(:cloud)$/u, /(-cloud)$/u];
+
+  for (const pattern of cloudSuffixPatterns) {
+    const candidate = model.replace(pattern, "");
+    if (candidate !== model && availableModels.includes(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
 }

@@ -52,12 +52,16 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
   const [useWebSearch, setUseWebSearch] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [readerStatus, setReaderStatus] = useState<"idle" | "loading" | "ready">(
+    "idle"
+  );
 
   useEffect(() => {
     let disposed = false;
 
     async function bootReader() {
       if (isMockReader) {
+        setReaderStatus("loading");
         const storedAnnotations = await window.silkroad.annotations.list(book.id);
         const initialTab = getInitialSideTab();
         if (disposed) {
@@ -92,6 +96,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
             }
           ]);
         }
+        setReaderStatus("ready");
         return;
       }
 
@@ -100,6 +105,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
       }
 
       setError(null);
+      setReaderStatus("loading");
       setSelection(null);
       setTranslation("");
       setCurrentChapterText("");
@@ -115,8 +121,19 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
       }
 
       setAnnotations(storedAnnotations);
-      const epubBook = ePub(book.readerUrl);
+      const epubBook = ePub(book.readerUrl, {
+        openAs: "epub"
+      });
       epubRef.current = epubBook;
+
+      epubBook.on?.("openFailed", (reason: unknown) => {
+        setReaderStatus("idle");
+        setError(formatReaderError("Failed to open EPUB", reason));
+      });
+      epubBook.on?.("loadFailed", (reason: unknown) => {
+        setReaderStatus("idle");
+        setError(formatReaderError("Failed to load EPUB resource", reason));
+      });
 
       const rendition = epubBook.renderTo(viewerRef.current, {
         width: "100%",
@@ -158,6 +175,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
       });
 
       await rendition.display(location?.cfi);
+      setReaderStatus("ready");
 
       for (const annotation of storedAnnotations) {
         paintAnnotation(annotation);
@@ -176,6 +194,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
     }
 
     void bootReader().catch((caught) => {
+      setReaderStatus("idle");
       setError(caught instanceof Error ? caught.message : String(caught));
     });
 
@@ -340,6 +359,10 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
 
       <div className="reader-body">
         <div className="book-pane">
+          {readerStatus === "loading" ? (
+            <div className="reader-loading">Loading EPUB...</div>
+          ) : null}
+          {error ? <div className="reader-error">{error}</div> : null}
           {selection ? (
             <div className="selection-toolbar">
               <button onClick={() => void createHighlight("highlight")}>
@@ -525,6 +548,13 @@ function parseCreator(creator: unknown): string | undefined {
     return creator.join(", ");
   }
   return String(creator);
+}
+
+function formatReaderError(label: string, reason: unknown): string {
+  if (reason instanceof Error) {
+    return `${label}: ${reason.message}`;
+  }
+  return `${label}: ${String(reason)}`;
 }
 
 function getInitialSideTab(): SideTab {

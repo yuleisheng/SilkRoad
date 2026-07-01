@@ -5,7 +5,10 @@ import { LibraryDatabase } from "./storage/database";
 export function registerBookProtocol(database: LibraryDatabase): void {
   protocol.handle("silkroad-book", async (request) => {
     const url = new URL(request.url);
-    const bookId = decodeURIComponent(url.pathname.replace(/^\/+/, ""));
+    const bookId = decodeURIComponent(url.pathname.replace(/^\/+/, "")).replace(
+      /\.epub$/i,
+      ""
+    );
 
     if (url.hostname !== "book" || !bookId) {
       return new Response("Invalid SilkRoad book URL.", { status: 400 });
@@ -16,6 +19,13 @@ export function registerBookProtocol(database: LibraryDatabase): void {
       return new Response("Book not found.", { status: 404 });
     }
 
-    return net.fetch(pathToFileURL(filePath).toString());
+    const response = await net.fetch(pathToFileURL(filePath).toString());
+    return new Response(response.body, {
+      headers: {
+        "content-type": "application/epub+zip"
+      },
+      status: response.status,
+      statusText: response.statusText
+    });
   });
 }

@@ -329,7 +329,7 @@ export class LibraryDatabase {
       title: row.title,
       author: row.author,
       fileName: row.fileName,
-      readerUrl: `silkroad-book://book/${encodeURIComponent(row.id)}`,
+      readerUrl: `silkroad-book://book/${encodeURIComponent(row.id)}.epub`,
       addedAt: row.addedAt,
       lastOpenedAt: row.lastOpenedAt
     };

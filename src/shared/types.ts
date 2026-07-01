@@ -60,7 +60,6 @@ export interface ProviderSettings {
 }
 
 export interface AppSettings {
-  targetLanguage: string;
   defaultChatProvider: ProviderKind;
   defaultSearchProvider: ProviderKind;
   providers: Record<ProviderKind, ProviderSettings>;
@@ -107,7 +106,6 @@ export interface ChatResponse {
 export interface TranslateRequest {
   providerId?: ProviderKind;
   text: string;
-  targetLanguage?: string;
   context?: ReaderContext;
   anchorRect?: ScreenRect;
 }
@@ -172,5 +170,6 @@ export interface SilkRoadAPI {
   };
   translation?: {
     translate(request: TranslateRequest): Promise<TranslateResponse>;
+    dismiss(): Promise<void>;
   };
 }

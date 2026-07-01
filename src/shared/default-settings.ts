@@ -1,7 +1,6 @@
 import type { AppSettings } from "./types";
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  targetLanguage: "简体中文",
   defaultChatProvider: "openrouter",
   defaultSearchProvider: "openrouter",
   providers: {

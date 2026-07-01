@@ -193,14 +193,15 @@ function createMockApi(): SilkRoadAPI {
       },
       translate: async (request) => ({
         providerId: request.providerId ?? settings.defaultChatProvider,
-        text: `【${request.targetLanguage ?? settings.targetLanguage}】这段文字会在这里显示成翻译结果。`
+        text: "这段文字会在这里显示成翻译结果。"
       })
     },
     translation: {
-      translate: async (request) => ({
+      translate: async () => ({
         providerId: "apple-system",
-        text: `【${request.targetLanguage ?? settings.targetLanguage}】这段文字会在这里显示成系统翻译结果。`
-      })
+        text: "这段文字会在这里显示成系统翻译结果。"
+      }),
+      dismiss: async () => {}
     }
   };
 }

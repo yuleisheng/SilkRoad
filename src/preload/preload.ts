@@ -42,7 +42,8 @@ const api: SilkRoadAPI = {
   },
   translation: {
     translate: (request: TranslateRequest) =>
-      ipcRenderer.invoke("translation:translate", request)
+      ipcRenderer.invoke("translation:translate", request),
+    dismiss: () => ipcRenderer.invoke("translation:dismiss")
   }
 };
 

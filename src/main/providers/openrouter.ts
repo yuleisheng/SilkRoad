@@ -45,11 +45,7 @@ export class OpenRouterProvider implements ChatProvider, SearchProvider {
   }
 
   translate(request: TranslateRequest, settings: ProviderSettings) {
-    const prompt = buildTranslationPrompt(
-      request.text,
-      request.targetLanguage ?? "简体中文",
-      request.context
-    );
+    const prompt = buildTranslationPrompt(request.text, request.context);
 
     return this.streamChat(
       {

@@ -13,7 +13,10 @@ import type {
 import type { AppPaths } from "./storage/app-paths";
 import { LibraryDatabase } from "./storage/database";
 import { ProviderManager } from "./providers/provider-manager";
-import { translateWithAppleSystem } from "./system-translation";
+import {
+  dismissAppleSystemTranslation,
+  translateWithAppleSystem
+} from "./system-translation";
 
 export function registerIpcHandlers(
   database: LibraryDatabase,
@@ -113,6 +116,10 @@ export function registerIpcHandlers(
         error: formatSystemTranslationError(error)
       };
     }
+  });
+
+  ipcMain.handle("translation:dismiss", () => {
+    dismissAppleSystemTranslation();
   });
 
   ipcMain.handle("ai:chat", (_event, request: ChatRequest) =>

@@ -336,15 +336,26 @@ export class LibraryDatabase {
   }
 }
 
-function mergeSettings(settings: AppSettings): AppSettings {
-  const providers = {
-    ...DEFAULT_SETTINGS.providers,
-    ...settings.providers
-  };
+function mergeSettings(settings: Partial<AppSettings>): AppSettings {
+  const providers: AppSettings["providers"] = { ...DEFAULT_SETTINGS.providers };
+  const incomingProviders = (settings.providers ?? {}) as Partial<
+    AppSettings["providers"]
+  >;
+
+  for (const providerId of Object.keys(DEFAULT_SETTINGS.providers) as Array<
+    keyof AppSettings["providers"]
+  >) {
+    providers[providerId] = {
+      ...DEFAULT_SETTINGS.providers[providerId],
+      ...incomingProviders[providerId]
+    };
+  }
 
   return {
-    ...DEFAULT_SETTINGS,
-    ...settings,
+    defaultChatProvider:
+      settings.defaultChatProvider ?? DEFAULT_SETTINGS.defaultChatProvider,
+    defaultSearchProvider:
+      settings.defaultSearchProvider ?? DEFAULT_SETTINGS.defaultSearchProvider,
     providers
   };
 }

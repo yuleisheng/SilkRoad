@@ -58,6 +58,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
   const activeContentsRef = useRef<any>(null);
   const contentsPointerCleanupRef = useRef<(() => void) | null>(null);
   const translationRequestIdRef = useRef(0);
+  const systemTranslationVisibleRef = useRef(false);
   const isMockReader = book.readerUrl.startsWith("mock-book://");
   const [annotations, setAnnotations] = useState<AnnotationRecord[]>([]);
   const [selection, setSelection] = useState<ActiveSelection | null>(null);
@@ -79,7 +80,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
 
   useEffect(() => {
     function handleDocumentPointerDown(event: PointerEvent) {
-      if (!selection) {
+      if (!selection && !translationPopover && !systemTranslationVisibleRef.current) {
         return;
       }
 
@@ -105,7 +106,14 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
     return () => {
       document.removeEventListener("pointerdown", handleDocumentPointerDown, true);
     };
-  }, [selection]);
+  }, [selection, translationPopover]);
+
+  useEffect(
+    () => () => {
+      dismissSystemTranslation();
+    },
+    []
+  );
 
   useEffect(() => {
     let disposed = false;
@@ -295,6 +303,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
     const anchorRect = getScreenAnchorRect(selection, bookPaneRef.current);
     const translationRequestId = translationRequestIdRef.current + 1;
     translationRequestIdRef.current = translationRequestId;
+    dismissSystemTranslation();
     setBusy(true);
     setError(null);
     dismissSelectionUi({ cancelTranslation: false });
@@ -312,7 +321,6 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
 
       const response = await translate({
         text: selection.text,
-        targetLanguage: settings.targetLanguage,
         context: getReaderContext(),
         anchorRect
       });
@@ -320,6 +328,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
         return;
       }
       if (response.presentation === "system-ui") {
+        systemTranslationVisibleRef.current = true;
         setTranslationPopover(null);
         return;
       }
@@ -434,6 +443,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
     if (cancelTranslation) {
       translationRequestIdRef.current += 1;
       setTranslationPopover(null);
+      dismissSystemTranslation();
     }
 
     if (clearContext) {
@@ -441,6 +451,15 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
       setNoteDraft("");
       clearSelectionTracking();
     }
+  }
+
+  function dismissSystemTranslation() {
+    if (!systemTranslationVisibleRef.current) {
+      return;
+    }
+
+    systemTranslationVisibleRef.current = false;
+    void window.silkroad.translation?.dismiss?.();
   }
 
   function clearNativeSelection() {
@@ -553,9 +572,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
                   : undefined
               }
             >
-              <div className="translation-popover-label">
-                {settings.targetLanguage}
-              </div>
+              <div className="translation-popover-label">翻译</div>
               <div className="translation-popover-body">
                 {translationPopover.status === "loading"
                   ? "翻译中..."

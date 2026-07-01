@@ -62,12 +62,11 @@ export function buildChatUserPrompt(
 
 export function buildTranslationPrompt(
   text: string,
-  targetLanguage: string,
   context?: ReaderContext
 ): string {
   const contextBlock = context ? buildReaderContextBlock(context) : "";
   return [
-    `Translate the selected passage into ${targetLanguage}.`,
+    "Translate the selected passage.",
     "Preserve meaning, tone, names, and formatting where practical.",
     contextBlock ? `Reading context:\n${contextBlock}` : undefined,
     `Text to translate:\n${truncateMiddle(text.trim(), MAX_SELECTED_TEXT_CHARS)}`

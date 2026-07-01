@@ -48,12 +48,25 @@ export async function translateWithAppleSystem(
     child.stdin.write(
       `${JSON.stringify({
         id,
+        action: "present",
         text: request.text,
-        targetLanguage: request.targetLanguage,
         anchorRect: request.anchorRect
       })}\n`
     );
   });
+}
+
+export function dismissAppleSystemTranslation(): void {
+  if (!helperProcess || helperProcess.killed) {
+    return;
+  }
+
+  helperProcess.stdin.write(
+    `${JSON.stringify({
+      id: randomUUID(),
+      action: "dismiss"
+    })}\n`
+  );
 }
 
 function getAppleTranslationHelperPath(): string {

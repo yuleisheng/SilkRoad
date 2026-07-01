@@ -61,7 +61,7 @@ export function SettingsView({
       <header className="topbar">
         <div>
           <h1>设置</h1>
-          <p>翻译、模型和联网搜索</p>
+          <p>模型和联网搜索</p>
         </div>
         <div className="topbar-actions">
           <button className="secondary-button" onClick={onClose}>
@@ -76,19 +76,6 @@ export function SettingsView({
 
       <div className="settings-layout">
         <section className="settings-band">
-          <label>
-            翻译目标语言
-            <input
-              value={draft.targetLanguage}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  targetLanguage: event.target.value
-                }))
-              }
-            />
-          </label>
-
           <label>
             默认聊天 Provider
             <select

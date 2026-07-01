@@ -5,8 +5,8 @@ import Translation
 
 struct TranslationUICommand: Decodable {
     let id: String
-    let text: String
-    let targetLanguage: String?
+    let action: String?
+    let text: String?
     let anchorRect: ScreenRect?
 }
 
@@ -30,8 +30,6 @@ struct TranslationUIResponse: Encodable {
 final class TranslationUIState: ObservableObject {
     @Published var isPresented = false
     @Published var text = ""
-    @Published var targetLocaleIdentifier = Locale.current.identifier
-    @Published var targetLocaleLanguage: Locale.Language?
     var activeRequestId: String?
 }
 
@@ -43,10 +41,6 @@ struct TranslationUIHostView: View {
     var body: some View {
         Color.clear
             .frame(width: 2, height: 2)
-            .environment(\.locale, Locale(identifier: state.targetLocaleIdentifier))
-            .translationTask(source: nil, target: state.targetLocaleLanguage) { session in
-                try? await session.prepareTranslation()
-            }
             .translationPresentation(
                 isPresented: $state.isPresented,
                 text: state.text,
@@ -146,6 +140,11 @@ final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func present(_ command: TranslationUICommand) {
+        if command.action == "dismiss" {
+            dismiss(command.id)
+            return
+        }
+
         guard #available(macOS 26.0, *) else {
             writeResponse(
                 TranslationUIResponse(
@@ -174,11 +173,24 @@ final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        guard let text = command.text,
+              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
+            writeResponse(
+                TranslationUIResponse(
+                    id: command.id,
+                    ok: false,
+                    providerId: "apple-system",
+                    presentation: nil,
+                    replacement: nil,
+                    error: "Apple Translation needs text to translate."
+                )
+            )
+            return
+        }
+
         state.activeRequestId = command.id
-        state.text = command.text
-        let targetLocaleIdentifier = normalizeLocaleIdentifier(command.targetLanguage)
-        state.targetLocaleIdentifier = targetLocaleIdentifier
-        state.targetLocaleLanguage = Locale.Language(identifier: targetLocaleIdentifier)
+        state.text = text
         state.isPresented = false
 
         window.setFrame(anchorFrame(from: command.anchorRect), display: true)
@@ -192,6 +204,29 @@ final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
         writeResponse(
             TranslationUIResponse(
                 id: command.id,
+                ok: true,
+                providerId: "apple-system",
+                presentation: "system-ui",
+                replacement: nil,
+                error: nil
+            )
+        )
+    }
+
+    private func dismiss(_ requestId: String) {
+        guard #available(macOS 26.0, *) else {
+            return
+        }
+
+        if let state = state as? TranslationUIState {
+            state.isPresented = false
+            state.activeRequestId = nil
+        }
+        window?.orderOut(nil)
+
+        writeResponse(
+            TranslationUIResponse(
+                id: requestId,
                 ok: true,
                 providerId: "apple-system",
                 presentation: "system-ui",
@@ -255,56 +290,6 @@ final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
                 height: rect.height
             )
             return screen.frame.intersects(topLeftRect)
-        }
-    }
-
-    private func normalizeLocaleIdentifier(_ targetLanguage: String?) -> String {
-        guard let targetLanguage else {
-            return Locale.current.identifier
-        }
-
-        let trimmed = targetLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            return Locale.current.identifier
-        }
-
-        let normalized = trimmed
-            .replacingOccurrences(of: "_", with: "-")
-            .lowercased()
-
-        if normalized.contains("简") || normalized.contains("simplified") {
-            return "zh-Hans"
-        }
-
-        if normalized.contains("繁") || normalized.contains("traditional") {
-            return "zh-Hant"
-        }
-
-        switch normalized {
-        case "中文", "汉语", "漢語", "chinese", "zh", "zh-cn", "zh-hans", "zh-hans-cn":
-            return "zh-Hans"
-        case "zh-tw", "zh-hk", "zh-mo", "zh-hant", "zh-hant-tw":
-            return "zh-Hant"
-        case "english", "英语", "英語", "en":
-            return "en"
-        case "japanese", "日语", "日語", "日本語", "ja":
-            return "ja"
-        case "korean", "韩语", "韓語", "한국어", "ko":
-            return "ko"
-        case "french", "法语", "法語", "français", "fr":
-            return "fr"
-        case "german", "德语", "德語", "deutsch", "de":
-            return "de"
-        case "spanish", "西班牙语", "西班牙語", "español", "es":
-            return "es"
-        case "italian", "意大利语", "義大利語", "italiano", "it":
-            return "it"
-        case "portuguese", "葡萄牙语", "葡萄牙語", "português", "pt":
-            return "pt"
-        case "russian", "俄语", "俄語", "русский", "ru":
-            return "ru"
-        default:
-            return trimmed.replacingOccurrences(of: "_", with: "-")
         }
     }
 

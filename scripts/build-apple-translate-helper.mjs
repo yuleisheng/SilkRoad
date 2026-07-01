@@ -7,10 +7,10 @@ const sourcePath = path.join(
   rootDir,
   "native",
   "apple-translate",
-  "SilkRoadAppleTranslate.swift"
+  "SilkRoadTranslationUI.swift"
 );
 const outputDir = path.join(rootDir, "dist", "main", "helpers");
-const outputPath = path.join(outputDir, "silkroad-apple-translate");
+const outputPath = path.join(outputDir, "silkroad-translation-ui");
 const moduleCachePath = path.join("/private", "tmp", "silkroad-swift-module-cache");
 
 mkdirSync(outputDir, { recursive: true });

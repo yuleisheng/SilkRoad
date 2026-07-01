@@ -1,9 +1,29 @@
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import type { TranslateRequest, TranslateResponse } from "../shared/types";
 
-const APPLE_TRANSLATION_TIMEOUT_MS = 6_000;
+const APPLE_TRANSLATION_UI_TIMEOUT_MS = 3_000;
+
+interface PendingRequest {
+  resolve(response: TranslateResponse): void;
+  reject(error: Error): void;
+  timer: NodeJS.Timeout;
+}
+
+interface HelperResponse {
+  id: string;
+  ok: boolean;
+  providerId?: string;
+  presentation?: "system-ui";
+  replacement?: string;
+  error?: string;
+}
+
+let helperProcess: ChildProcessWithoutNullStreams | null = null;
+let stdoutBuffer = "";
+const pendingRequests = new Map<string, PendingRequest>();
 
 export async function translateWithAppleSystem(
   request: TranslateRequest
@@ -11,101 +31,119 @@ export async function translateWithAppleSystem(
   const helperPath = getAppleTranslationHelperPath();
   if (!existsSync(helperPath)) {
     throw new Error(
-      "Apple Translation helper is not available in this build. Rebuild on macOS 26+ with Swift toolchain support."
+      "Apple Translation UI helper is not available in this build. Rebuild on macOS 26+ with Swift toolchain support."
     );
   }
 
-  return runAppleTranslationHelper(helperPath, request);
-}
+  const child = ensureAppleTranslationHelper(helperPath);
+  const id = randomUUID();
 
-function getAppleTranslationHelperPath(): string {
-  return path.resolve(__dirname, "..", "helpers", "silkroad-apple-translate");
-}
-
-function runAppleTranslationHelper(
-  helperPath: string,
-  request: TranslateRequest
-): Promise<TranslateResponse> {
   return new Promise((resolve, reject) => {
-    const child = spawn(helperPath, [], {
-      stdio: ["pipe", "pipe", "pipe"]
-    });
-    const stdout: Buffer[] = [];
-    const stderr: Buffer[] = [];
-    let settled = false;
-
     const timer = setTimeout(() => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      child.kill("SIGTERM");
-      reject(
-        new Error(
-          "Apple Translation did not respond. macOS may still be preparing translation models; try again later."
-        )
-      );
-    }, APPLE_TRANSLATION_TIMEOUT_MS);
+      pendingRequests.delete(id);
+      reject(new Error("Apple Translation UI did not respond."));
+    }, APPLE_TRANSLATION_UI_TIMEOUT_MS);
 
-    child.stdout.on("data", (chunk: Buffer) => stdout.push(chunk));
-    child.stderr.on("data", (chunk: Buffer) => stderr.push(chunk));
-    child.on("error", (error) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      clearTimeout(timer);
-      reject(error);
-    });
-    child.on("close", (code) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      clearTimeout(timer);
-
-      const output = Buffer.concat(stdout).toString("utf8").trim();
-      const errorOutput = Buffer.concat(stderr).toString("utf8").trim();
-
-      if (code !== 0) {
-        reject(new Error(readHelperError(errorOutput)));
-        return;
-      }
-
-      try {
-        const parsed = JSON.parse(output) as TranslateResponse;
-        resolve(parsed);
-      } catch {
-        reject(new Error("Apple Translation returned an unreadable response."));
-      }
-    });
-
-    child.stdin.end(
-      JSON.stringify({
+    pendingRequests.set(id, { resolve, reject, timer });
+    child.stdin.write(
+      `${JSON.stringify({
+        id,
         text: request.text,
-        targetLanguage: request.targetLanguage
-      })
+        targetLanguage: request.targetLanguage,
+        anchorRect: request.anchorRect
+      })}\n`
     );
   });
 }
 
-function readHelperError(errorOutput: string): string {
-  if (!errorOutput) {
-    return "Apple Translation failed.";
+function getAppleTranslationHelperPath(): string {
+  return path.resolve(__dirname, "..", "helpers", "silkroad-translation-ui");
+}
+
+function ensureAppleTranslationHelper(helperPath: string): ChildProcessWithoutNullStreams {
+  if (helperProcess && !helperProcess.killed) {
+    return helperProcess;
   }
 
-  try {
-    const parsed = JSON.parse(errorOutput) as { error?: string };
-    return normalizeAppleTranslationError(parsed.error || "Apple Translation failed.");
-  } catch {
-    return normalizeAppleTranslationError(errorOutput);
+  const child = spawn(helperPath, [], {
+    stdio: ["pipe", "pipe", "pipe"]
+  });
+  helperProcess = child;
+  stdoutBuffer = "";
+
+  child.stdout.on("data", (chunk: Buffer) => {
+    stdoutBuffer += chunk.toString("utf8");
+    flushHelperResponses();
+  });
+
+  child.stderr.on("data", (chunk: Buffer) => {
+    const message = chunk.toString("utf8").trim();
+    if (message) {
+      console.warn(`[apple-translation-ui] ${message}`);
+    }
+  });
+
+  child.on("error", (error) => {
+    rejectAllPending(error);
+    helperProcess = null;
+  });
+
+  child.on("exit", (code) => {
+    rejectAllPending(
+      new Error(`Apple Translation UI helper exited${code === null ? "" : ` with ${code}`}.`)
+    );
+    helperProcess = null;
+  });
+
+  return child;
+}
+
+function flushHelperResponses(): void {
+  let newlineIndex = stdoutBuffer.indexOf("\n");
+
+  while (newlineIndex !== -1) {
+    const line = stdoutBuffer.slice(0, newlineIndex).trim();
+    stdoutBuffer = stdoutBuffer.slice(newlineIndex + 1);
+
+    if (line) {
+      handleHelperResponse(line);
+    }
+
+    newlineIndex = stdoutBuffer.indexOf("\n");
   }
 }
 
-function normalizeAppleTranslationError(message: string): string {
-  if (message.includes("Unable to Translate")) {
-    return "Apple Translation is unavailable for this selection right now.";
+function handleHelperResponse(line: string): void {
+  let response: HelperResponse;
+  try {
+    response = JSON.parse(line) as HelperResponse;
+  } catch {
+    console.warn(`[apple-translation-ui] Unreadable response: ${line}`);
+    return;
   }
 
-  return message;
+  const pending = pendingRequests.get(response.id);
+  if (!pending) {
+    return;
+  }
+
+  pendingRequests.delete(response.id);
+  clearTimeout(pending.timer);
+
+  pending.resolve({
+    ok: response.ok,
+    providerId: "apple-system",
+    presentation: response.presentation,
+    replacement: response.replacement,
+    text: "",
+    error: response.error
+  });
+}
+
+function rejectAllPending(error: Error): void {
+  for (const [id, pending] of pendingRequests) {
+    pendingRequests.delete(id);
+    clearTimeout(pending.timer);
+    pending.reject(error);
+  }
 }

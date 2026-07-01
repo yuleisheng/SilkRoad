@@ -292,6 +292,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
     }
 
     const popoverPosition = getPopoverPosition(selection);
+    const anchorRect = getScreenAnchorRect(selection, bookPaneRef.current);
     const translationRequestId = translationRequestIdRef.current + 1;
     translationRequestIdRef.current = translationRequestId;
     setBusy(true);
@@ -312,9 +313,14 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
       const response = await translate({
         text: selection.text,
         targetLanguage: settings.targetLanguage,
-        context: getReaderContext()
+        context: getReaderContext(),
+        anchorRect
       });
       if (translationRequestIdRef.current !== translationRequestId) {
+        return;
+      }
+      if (response.presentation === "system-ui") {
+        setTranslationPopover(null);
         return;
       }
       if (response.ok === false) {
@@ -797,6 +803,24 @@ function getToolbarPosition(
   return {
     left: clamp(rawLeft, horizontalInset, paneRect.width - horizontalInset),
     top: Math.max(58, rawTop)
+  };
+}
+
+function getScreenAnchorRect(
+  activeSelection: ActiveSelection,
+  bookPane: HTMLDivElement | null
+) {
+  const position = activeSelection.toolbarPosition;
+  if (!position || !bookPane) {
+    return undefined;
+  }
+
+  const paneRect = bookPane.getBoundingClientRect();
+  return {
+    x: window.screenX + paneRect.left + position.left - 4,
+    y: window.screenY + paneRect.top + position.top - 4,
+    width: 8,
+    height: 8
   };
 }
 

@@ -109,6 +109,7 @@ export interface TranslateRequest {
   text: string;
   targetLanguage?: string;
   context?: ReaderContext;
+  anchorRect?: ScreenRect;
 }
 
 export interface TranslateResponse {
@@ -116,6 +117,15 @@ export interface TranslateResponse {
   providerId: TranslationProviderKind;
   ok?: boolean;
   error?: string;
+  presentation?: "system-ui" | "text";
+  replacement?: string;
+}
+
+export interface ScreenRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 export interface ImportAnnotationsPayload {

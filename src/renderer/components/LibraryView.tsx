@@ -1,23 +1,25 @@
 import { BookOpen, Upload } from "lucide-react";
+import type { TranslateFunction } from "../../shared/i18n";
 import type { BookRecord } from "../../shared/types";
 
 interface LibraryViewProps {
   books: BookRecord[];
+  t: TranslateFunction;
   onImport(): Promise<void>;
   onOpenBook(book: BookRecord): void;
 }
 
-export function LibraryView({ books, onImport, onOpenBook }: LibraryViewProps) {
+export function LibraryView({ books, t, onImport, onOpenBook }: LibraryViewProps) {
   return (
     <section className="library-view">
       <header className="topbar">
         <div>
           <h1>SilkRoad</h1>
-          <p>{books.length} 本 EPUB</p>
+          <p>{t("library.epubCount", { count: books.length })}</p>
         </div>
         <button className="primary-button" onClick={() => void onImport()}>
           <Upload size={17} />
-          导入 EPUB
+          {t("library.importEpub")}
         </button>
       </header>
 
@@ -43,7 +45,7 @@ export function LibraryView({ books, onImport, onOpenBook }: LibraryViewProps) {
           <h2>SilkRoad</h2>
           <button className="primary-button" onClick={() => void onImport()}>
             <Upload size={17} />
-            导入 EPUB
+            {t("library.importEpub")}
           </button>
         </div>
       ) : null}

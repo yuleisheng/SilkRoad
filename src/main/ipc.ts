@@ -17,6 +17,7 @@ import {
   dismissAppleSystemTranslation,
   translateWithAppleSystem
 } from "./system-translation";
+import { getTranslator } from "../shared/i18n";
 
 export function registerIpcHandlers(
   database: LibraryDatabase,
@@ -26,10 +27,11 @@ export function registerIpcHandlers(
   ipcMain.handle("books:list", () => database.listBooks());
 
   ipcMain.handle("books:import", async () => {
+    const t = getTranslator(database.getSettings().appLanguage);
     const result = await dialog.showOpenDialog({
-      title: "Import EPUB",
+      title: t("dialog.importEpub"),
       properties: ["openFile"],
-      filters: [{ name: "EPUB books", extensions: ["epub"] }]
+      filters: [{ name: t("dialog.epubBooks"), extensions: ["epub"] }]
     });
 
     if (result.canceled || result.filePaths.length === 0) {

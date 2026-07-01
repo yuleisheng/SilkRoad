@@ -1,5 +1,6 @@
 import { CheckCircle2, Save, ShieldCheck, XCircle } from "lucide-react";
 import { useState } from "react";
+import { APP_LANGUAGES, getTranslator, type AppLanguage } from "../../shared/i18n";
 import type { AppSettings, ProviderHealth, ProviderKind } from "../../shared/types";
 
 interface SettingsViewProps {
@@ -23,6 +24,7 @@ export function SettingsView({
   const [draft, setDraft] = useState<AppSettings>(settings);
   const [health, setHealth] = useState<Partial<Record<ProviderKind, ProviderHealth>>>({});
   const [saving, setSaving] = useState(false);
+  const t = getTranslator(draft.appLanguage);
 
   function updateProvider(providerId: ProviderKind, patch: Record<string, unknown>) {
     setDraft((current) => ({
@@ -60,16 +62,16 @@ export function SettingsView({
     <section className="settings-view">
       <header className="topbar">
         <div>
-          <h1>设置</h1>
-          <p>模型 Provider</p>
+          <h1>{t("settings.title")}</h1>
+          <p>{t("settings.subtitle")}</p>
         </div>
         <div className="topbar-actions">
           <button className="secondary-button" onClick={onClose}>
-            返回
+            {t("settings.back")}
           </button>
           <button className="primary-button" onClick={() => void save()} disabled={saving}>
             <Save size={17} />
-            保存
+            {t("settings.save")}
           </button>
         </div>
       </header>
@@ -77,7 +79,26 @@ export function SettingsView({
       <div className="settings-layout">
         <section className="settings-band">
           <label>
-            默认聊天 Provider
+            {t("settings.language")}
+            <select
+              value={draft.appLanguage}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...current,
+                  appLanguage: event.target.value as AppLanguage
+                }))
+              }
+            >
+              {APP_LANGUAGES.map((language) => (
+                <option key={language.id} value={language.id}>
+                  {language.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            {t("settings.defaultChatProvider")}
             <select
               value={draft.defaultChatProvider}
               onChange={(event) =>
@@ -94,7 +115,6 @@ export function SettingsView({
               ))}
             </select>
           </label>
-
         </section>
 
         <section className="provider-list">
@@ -107,7 +127,9 @@ export function SettingsView({
                 <div className="provider-header">
                   <div>
                     <h2>{provider.label}</h2>
-                    {provider.experimental ? <span className="tag">Experimental</span> : null}
+                    {provider.experimental ? (
+                      <span className="tag">{t("settings.experimental")}</span>
+                    ) : null}
                   </div>
                   <label className="switch">
                     <input
@@ -124,7 +146,7 @@ export function SettingsView({
                 <div className="provider-fields">
                   {providerId !== "codex-subscription" ? (
                     <label>
-                      Base URL
+                      {t("settings.baseUrl")}
                       <input
                         value={provider.baseUrl ?? ""}
                         onChange={(event) =>
@@ -135,10 +157,14 @@ export function SettingsView({
                   ) : null}
 
                   <label>
-                    Model
+                    {t("settings.model")}
                     <input
                       value={provider.model}
-                      placeholder={providerId === "codex-subscription" ? "可留空" : "model id"}
+                      placeholder={
+                        providerId === "codex-subscription"
+                          ? t("settings.modelOptional")
+                          : t("settings.modelPlaceholder")
+                      }
                       onChange={(event) =>
                         updateProvider(providerId, { model: event.target.value })
                       }
@@ -147,10 +173,14 @@ export function SettingsView({
 
                   {providerId !== "codex-subscription" ? (
                     <label>
-                      API Key
+                      {t("settings.apiKey")}
                       <input
                         type="password"
-                        placeholder={provider.apiKeyStored ? "已保存" : "未设置"}
+                        placeholder={
+                          provider.apiKeyStored
+                            ? t("settings.apiKeyStored")
+                            : t("settings.apiKeyMissing")
+                        }
                         onChange={(event) =>
                           updateProvider(providerId, {
                             apiKey: event.target.value,
@@ -160,7 +190,6 @@ export function SettingsView({
                       />
                     </label>
                   ) : null}
-
                 </div>
 
                 <div className="provider-actions">
@@ -169,7 +198,7 @@ export function SettingsView({
                     onClick={() => void validate(providerId)}
                   >
                     <ShieldCheck size={16} />
-                    检查
+                    {t("settings.check")}
                   </button>
                   {providerHealth ? (
                     <span className={providerHealth.ok ? "health ok" : "health fail"}>

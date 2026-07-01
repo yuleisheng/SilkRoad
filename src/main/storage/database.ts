@@ -10,6 +10,7 @@ import type {
   ReadingLocation
 } from "../../shared/types";
 import { DEFAULT_SETTINGS } from "../../shared/default-settings";
+import { isAppLanguage } from "../../shared/i18n";
 import { decryptSecret, encryptSecret } from "../security/secure-store";
 
 type BookRow = Omit<BookRecord, "readerUrl"> & { readerUrl?: string };
@@ -352,6 +353,9 @@ function mergeSettings(settings: Partial<AppSettings>): AppSettings {
   }
 
   return {
+    appLanguage: isAppLanguage(settings.appLanguage)
+      ? settings.appLanguage
+      : DEFAULT_SETTINGS.appLanguage,
     defaultChatProvider:
       settings.defaultChatProvider ?? DEFAULT_SETTINGS.defaultChatProvider,
     providers

@@ -1,3 +1,5 @@
+import type { AppLanguage } from "./i18n";
+
 export type ProviderKind =
   | "openrouter"
   | "openai-compatible"
@@ -59,6 +61,7 @@ export interface ProviderSettings {
 }
 
 export interface AppSettings {
+  appLanguage: AppLanguage;
   defaultChatProvider: ProviderKind;
   providers: Record<ProviderKind, ProviderSettings>;
 }

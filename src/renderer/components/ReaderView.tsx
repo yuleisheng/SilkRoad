@@ -12,6 +12,7 @@ import {
   X
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import type { TranslateFunction } from "../../shared/i18n";
 import type {
   AnnotationRecord,
   AppSettings,
@@ -23,6 +24,7 @@ import type {
 interface ReaderViewProps {
   book: BookRecord;
   settings: AppSettings;
+  t: TranslateFunction;
   onBack(): void;
   onBookUpdated(book: BookRecord): void;
 }
@@ -46,7 +48,13 @@ interface TranslationPopover {
   position?: ActiveSelection["toolbarPosition"];
 }
 
-export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderViewProps) {
+export function ReaderView({
+  book,
+  settings,
+  t,
+  onBack,
+  onBookUpdated
+}: ReaderViewProps) {
   const bookPaneRef = useRef<HTMLDivElement | null>(null);
   const selectionToolbarRef = useRef<HTMLDivElement | null>(null);
   const translationPopoverRef = useRef<HTMLDivElement | null>(null);
@@ -183,11 +191,11 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
 
       epubBook.on?.("openFailed", (reason: unknown) => {
         setReaderStatus("idle");
-        setError(formatReaderError("Failed to open EPUB", reason));
+        setError(formatReaderError(t("reader.failedOpenEpub"), reason));
       });
       epubBook.on?.("loadFailed", (reason: unknown) => {
         setReaderStatus("idle");
-        setError(formatReaderError("Failed to load EPUB resource", reason));
+        setError(formatReaderError(t("reader.failedLoadEpub"), reason));
       });
 
       const rendition = epubBook.renderTo(viewerRef.current, {
@@ -310,9 +318,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
     try {
       const translate = window.silkroad.translation?.translate;
       if (!translate) {
-        throw new Error(
-          "Apple Translation bridge is not loaded yet. Please restart SilkRoad so the updated preload script can load."
-        );
+        throw new Error(t("reader.appleBridgeUnavailable"));
       }
 
       const response = await translate({
@@ -333,7 +339,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
           status: "error",
           error:
             response.error ||
-            "Apple Translation is unavailable for this selection right now.",
+            t("reader.translationUnavailable"),
           position: popoverPosition
         });
         return;
@@ -500,7 +506,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
     <section className="reader-view">
       <header className="reader-bar">
         <div className="reader-title">
-          <button className="icon-button" title="返回书库" onClick={onBack}>
+          <button className="icon-button" title={t("reader.backToLibrary")} onClick={onBack}>
             <ChevronLeft size={19} />
           </button>
           <div>
@@ -513,7 +519,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
       <div className="reader-body">
         <div ref={bookPaneRef} className="book-pane">
           {readerStatus === "loading" ? (
-            <div className="reader-loading">Loading EPUB...</div>
+            <div className="reader-loading">{t("reader.loadingEpub")}</div>
           ) : null}
           {error ? <div className="reader-error">{error}</div> : null}
           {selection && selectionUiVisible ? (
@@ -533,19 +539,19 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
             >
               <button onClick={() => void createHighlight("highlight")}>
                 <Highlighter size={16} />
-                高亮
+                {t("reader.highlight")}
               </button>
               <button onClick={() => openSideTab("annotations")}>
                 <StickyNote size={16} />
-                Note
+                {t("reader.note")}
               </button>
               <button onClick={() => void translateSelection()}>
                 <Languages size={16} />
-                翻译
+                {t("reader.translate")}
               </button>
               <button onClick={() => openSideTab("ai")}>
                 <MessageSquare size={16} />
-                AI
+                {t("reader.ai")}
               </button>
             </div>
           ) : null}
@@ -564,10 +570,10 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
                   : undefined
               }
             >
-              <div className="translation-popover-label">翻译</div>
+              <div className="translation-popover-label">{t("reader.translate")}</div>
               <div className="translation-popover-body">
                 {translationPopover.status === "loading"
-                  ? "翻译中..."
+                  ? t("reader.translationLoading")
                   : translationPopover.status === "error"
                     ? translationPopover.error
                     : translationPopover.text}
@@ -575,10 +581,10 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
             </div>
           ) : null}
           {isMockReader ? <DemoReaderPage /> : <div ref={viewerRef} className="epub-viewer" />}
-          <div className="page-controls" aria-label="阅读导航">
+          <div className="page-controls" aria-label={t("reader.pageNavigation")}>
             <button
               className="icon-button page-button"
-              title="上一页"
+              title={t("reader.previousPage")}
               onClick={() => renditionRef.current?.prev?.()}
               disabled={isMockReader || readerStatus !== "ready"}
             >
@@ -586,7 +592,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
             </button>
             <button
               className="icon-button page-button"
-              title="下一页"
+              title={t("reader.nextPage")}
               onClick={() => renditionRef.current?.next?.()}
               disabled={isMockReader || readerStatus !== "ready"}
             >
@@ -601,13 +607,13 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
                 className={sideTab === "annotations" ? "active" : ""}
                 onClick={() => setSideTab("annotations")}
               >
-                Notes
+                {t("reader.notesTab")}
               </button>
               <button
                 className={sideTab === "ai" ? "active" : ""}
                 onClick={() => setSideTab("ai")}
               >
-                AI
+                {t("reader.ai")}
               </button>
             </div>
 
@@ -628,7 +634,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
                       disabled={!noteDraft.trim()}
                     >
                       <Save size={16} />
-                      保存 Note
+                      {t("reader.saveNote")}
                     </button>
                   </div>
                 ) : null}
@@ -641,14 +647,16 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
                         onClick={() => renditionRef.current?.display?.(annotation.cfiRange)}
                       >
                         <span className="annotation-type">
-                          {annotation.type === "note" ? "Note" : "Highlight"}
+                          {annotation.type === "note"
+                            ? t("reader.annotationNote")
+                            : t("reader.annotationHighlight")}
                         </span>
                         <span>{annotation.selectedText}</span>
                         {annotation.noteText ? <strong>{annotation.noteText}</strong> : null}
                       </button>
                       <button
                         className="icon-button small"
-                        title="删除"
+                        title={t("reader.deleteAnnotation")}
                         onClick={() => void removeAnnotation(annotation)}
                       >
                         <Trash2 size={15} />
@@ -675,11 +683,11 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
                       <div className="chat-context-preview">“{selection.text}”</div>
                       <div className="chat-context-chip">
                         <MessageSquare size={15} />
-                        <span>1 selection</span>
+                        <span>{t("reader.selectionChip")}</span>
                         <button
                           className="ai-context-clear"
-                          title="移除选区上下文"
-                          aria-label="移除选区上下文"
+                          title={t("reader.clearSelectionContext")}
+                          aria-label={t("reader.clearSelectionContext")}
                           onClick={() => dismissSelectionUi({ clearContext: true })}
                         >
                           <X size={15} />
@@ -700,8 +708,8 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
                     className="chat-send-button"
                     onClick={() => void sendChat()}
                     disabled={busy || !aiInput.trim()}
-                    title="发送"
-                    aria-label="发送"
+                    title={t("reader.send")}
+                    aria-label={t("reader.send")}
                   >
                     <Send size={17} />
                   </button>

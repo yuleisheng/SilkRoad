@@ -1,6 +1,7 @@
 import type { AppSettings } from "./types";
 
 export const DEFAULT_SETTINGS: AppSettings = {
+  appLanguage: "zh-CN",
   defaultChatProvider: "openrouter",
   providers: {
     openrouter: {

@@ -1,5 +1,6 @@
 import { BookOpen, Library, Settings } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { getTranslator } from "../shared/i18n";
 import type { AppSettings, BookRecord } from "../shared/types";
 import { LibraryView } from "./components/LibraryView";
 import { ReaderView } from "./components/ReaderView";
@@ -18,6 +19,14 @@ export function App() {
     () => books.find((book) => book.id === selectedBookId) ?? null,
     [books, selectedBookId]
   );
+  const t = useMemo(
+    () => getTranslator(settings?.appLanguage),
+    [settings?.appLanguage]
+  );
+
+  useEffect(() => {
+    document.documentElement.lang = settings?.appLanguage ?? "zh-CN";
+  }, [settings?.appLanguage]);
 
   async function refreshBooks() {
     setBooks(await window.silkroad.books.list());
@@ -55,14 +64,14 @@ export function App() {
         </div>
         <button
           className={view === "library" ? "rail-button active" : "rail-button"}
-          title="书库"
+          title={t("nav.library")}
           onClick={() => setView("library")}
         >
           <Library size={20} />
         </button>
         <button
           className={view === "settings" ? "rail-button active" : "rail-button"}
-          title="设置"
+          title={t("nav.settings")}
           onClick={() => setView("settings")}
         >
           <Settings size={20} />
@@ -81,6 +90,7 @@ export function App() {
         <ReaderView
           book={selectedBook}
           settings={settings}
+          t={t}
           onBack={() => setSelectedBookId(null)}
           onBookUpdated={(book) =>
             setBooks((current) =>
@@ -91,6 +101,7 @@ export function App() {
       ) : (
         <LibraryView
           books={books}
+          t={t}
           onImport={async () => {
             const book = await window.silkroad.books.import();
             if (book) {

@@ -356,10 +356,18 @@ function mergeSettings(settings: Partial<AppSettings>): AppSettings {
     appLanguage: isAppLanguage(settings.appLanguage)
       ? settings.appLanguage
       : DEFAULT_SETTINGS.appLanguage,
-    defaultChatProvider:
-      settings.defaultChatProvider ?? DEFAULT_SETTINGS.defaultChatProvider,
+    defaultChatProvider: isProviderKind(settings.defaultChatProvider)
+      ? settings.defaultChatProvider
+      : DEFAULT_SETTINGS.defaultChatProvider,
     providers
   };
+}
+
+function isProviderKind(providerId: unknown): providerId is keyof AppSettings["providers"] {
+  return (
+    typeof providerId === "string" &&
+    Object.prototype.hasOwnProperty.call(DEFAULT_SETTINGS.providers, providerId)
+  );
 }
 
 function sanitizeProviderSettings(provider: ProviderSettings): ProviderSettings {
@@ -370,8 +378,7 @@ function sanitizeProviderSettings(provider: ProviderSettings): ProviderSettings 
     baseUrl: provider.baseUrl,
     apiKey: provider.apiKey,
     apiKeyStored: provider.apiKeyStored,
-    clearApiKey: provider.clearApiKey,
-    experimental: provider.experimental
+    clearApiKey: provider.clearApiKey
   };
 }
 

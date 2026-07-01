@@ -10,7 +10,7 @@ This is a v1 Electron implementation scaffold with real app boundaries:
 - DRM-free EPUB reading through `epubjs`
 - Local SQLite library, reading progress, highlights, notes, settings, and message tables
 - Main-process-only API key storage through Electron `safeStorage`
-- Provider adapters for OpenRouter, OpenAI-compatible APIs, Ollama Cloud, and an experimental Codex subscription path
+- Provider adapters for OpenRouter, OpenAI-compatible APIs, and Ollama Cloud
 - Renderer access through a narrow preload IPC API
 
 ## Development
@@ -32,7 +32,6 @@ npm run build
 
 - OpenRouter uses the OpenAI-compatible chat completions surface and appends `:online` to the model when web search is enabled.
 - Ollama Cloud uses `https://ollama.com/api/chat`, `https://ollama.com/api/web_search`, and `https://ollama.com/api/web_fetch`.
-- Codex subscription support is experimental. It uses the Codex SDK and relies on an existing local Codex login. SilkRoad does not read, copy, or save `~/.codex/auth.json`.
 
 ## Scope
 

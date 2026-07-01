@@ -156,11 +156,8 @@ function createMockApi(): SilkRoadAPI {
         return settings;
       },
       validate: async (providerId: ProviderKind): Promise<ProviderHealth> => ({
-        ok: providerId !== "codex-subscription",
-        message:
-          providerId === "codex-subscription"
-            ? "Experimental: requires local Codex login."
-            : "Demo provider settings look ready."
+        ok: Boolean(settings.providers[providerId]),
+        message: "Demo provider settings look ready."
       })
     },
     ai: {

@@ -378,17 +378,6 @@ textarea:focus {
   font-size: 17px;
 }
 
-.tag {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 999px;
-  color: #8a4b08;
-  background: #ffe9b0;
-  font-size: 12px;
-}
-
 .provider-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

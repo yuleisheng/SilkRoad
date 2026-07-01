@@ -18,7 +18,6 @@
     "dist": "npm run build && electron-builder --mac"
   },
   "dependencies": {
-    "@openai/codex-sdk": "*",
     "better-sqlite3": "latest",
     "electron-squirrel-startup": "^1.0.1",
     "epubjs": "^0.3.93",

@@ -35,7 +35,6 @@ export interface ProviderCapability {
   chat: boolean;
   translate: boolean;
   search: boolean;
-  experimental?: boolean;
 }
 
 export class ProviderConfigurationError extends Error {

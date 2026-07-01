@@ -19,7 +19,6 @@ import type {
 } from "../../shared/types";
 import { LibraryDatabase } from "../storage/database";
 import { collectStream } from "./http-stream";
-import { CodexSubscriptionProvider } from "./codex-subscription";
 import { OllamaCloudProvider } from "./ollama-cloud";
 import { OpenAICompatibleProvider } from "./openai-compatible";
 import { OpenRouterProvider } from "./openrouter";
@@ -43,8 +42,7 @@ export class ProviderManager {
     this.chatProviders = {
       openrouter: openRouter,
       "openai-compatible": new OpenAICompatibleProvider(),
-      "ollama-cloud": ollamaCloud,
-      "codex-subscription": new CodexSubscriptionProvider()
+      "ollama-cloud": ollamaCloud
     };
 
     this.searchProviders = {

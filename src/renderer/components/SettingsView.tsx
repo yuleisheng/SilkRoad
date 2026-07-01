@@ -12,8 +12,7 @@ interface SettingsViewProps {
 const PROVIDER_ORDER: ProviderKind[] = [
   "openrouter",
   "openai-compatible",
-  "ollama-cloud",
-  "codex-subscription"
+  "ollama-cloud"
 ];
 
 export function SettingsView({
@@ -131,59 +130,48 @@ export function SettingsView({
             <div className="provider-header">
               <div>
                 <h2>{selectedProvider.label}</h2>
-                {selectedProvider.experimental ? (
-                  <span className="tag">{t("settings.experimental")}</span>
-                ) : null}
               </div>
             </div>
 
             <div className="provider-fields">
-              {selectedProviderId !== "codex-subscription" ? (
-                <label>
-                  {t("settings.baseUrl")}
-                  <input
-                    value={selectedProvider.baseUrl ?? ""}
-                    onChange={(event) =>
-                      updateProvider(selectedProviderId, { baseUrl: event.target.value })
-                    }
-                  />
-                </label>
-              ) : null}
+              <label>
+                {t("settings.baseUrl")}
+                <input
+                  value={selectedProvider.baseUrl ?? ""}
+                  onChange={(event) =>
+                    updateProvider(selectedProviderId, { baseUrl: event.target.value })
+                  }
+                />
+              </label>
 
               <label>
                 {t("settings.model")}
                 <input
                   value={selectedProvider.model}
-                  placeholder={
-                    selectedProviderId === "codex-subscription"
-                      ? t("settings.modelOptional")
-                      : t("settings.modelPlaceholder")
-                  }
+                  placeholder={t("settings.modelPlaceholder")}
                   onChange={(event) =>
                     updateProvider(selectedProviderId, { model: event.target.value })
                   }
                 />
               </label>
 
-              {selectedProviderId !== "codex-subscription" ? (
-                <label>
-                  {t("settings.apiKey")}
-                  <input
-                    type="password"
-                    placeholder={
-                      selectedProvider.apiKeyStored
-                        ? t("settings.apiKeyMasked")
-                        : t("settings.apiKeyMissing")
-                    }
-                    onChange={(event) =>
-                      updateProvider(selectedProviderId, {
-                        apiKey: event.target.value,
-                        clearApiKey: false
-                      })
-                    }
-                  />
-                </label>
-              ) : null}
+              <label>
+                {t("settings.apiKey")}
+                <input
+                  type="password"
+                  placeholder={
+                    selectedProvider.apiKeyStored
+                      ? t("settings.apiKeyMasked")
+                      : t("settings.apiKeyMissing")
+                  }
+                  onChange={(event) =>
+                    updateProvider(selectedProviderId, {
+                      apiKey: event.target.value,
+                      clearApiKey: false
+                    })
+                  }
+                />
+              </label>
             </div>
 
             <div className="provider-actions">

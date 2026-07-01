@@ -21,12 +21,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
       label: "Ollama Cloud",
       model: "",
       baseUrl: "https://ollama.com"
-    },
-    "codex-subscription": {
-      id: "codex-subscription",
-      label: "Codex Subscription",
-      model: "",
-      experimental: true
     }
   }
 };

@@ -3,8 +3,7 @@ import type { AppLanguage } from "./i18n";
 export type ProviderKind =
   | "openrouter"
   | "openai-compatible"
-  | "ollama-cloud"
-  | "codex-subscription";
+  | "ollama-cloud";
 
 export type TranslationProviderKind = ProviderKind | "apple-system";
 
@@ -56,7 +55,6 @@ export interface ProviderSettings {
   apiKey?: string;
   apiKeyStored?: boolean;
   clearApiKey?: boolean;
-  experimental?: boolean;
 }
 
 export interface AppSettings {

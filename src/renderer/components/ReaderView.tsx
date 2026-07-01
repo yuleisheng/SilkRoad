@@ -20,6 +20,7 @@ import type {
   ChatMessage,
   ReaderContext
 } from "../../shared/types";
+import { MarkdownMessage } from "./MarkdownMessage";
 
 interface ReaderViewProps {
   book: BookRecord;
@@ -769,6 +770,8 @@ export function ReaderView({
                             <span />
                             <span />
                           </span>
+                        ) : message.role === "assistant" && message.status !== "error" ? (
+                          <MarkdownMessage content={message.content} />
                         ) : (
                           message.content
                         )}

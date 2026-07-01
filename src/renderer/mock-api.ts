@@ -173,6 +173,10 @@ function createMockApi(): SilkRoadAPI {
           ["openrouter", "ollama-cloud"].includes(providerId) &&
           shouldUseWebSearch(userMessage?.content ?? "");
 
+        const content = formatDemoAssistantMessage(
+          userMessage?.content || "the selected text"
+        );
+
         return {
           searchResults: usesSearch
             ? [
@@ -187,9 +191,7 @@ function createMockApi(): SilkRoadAPI {
           message: {
             id: crypto.randomUUID(),
             role: "assistant",
-            content: `I would connect this passage to the chapter's larger theme: ${
-              userMessage?.content || "the selected text"
-            }.`,
+            content,
             createdAt: new Date().toISOString()
           }
         };
@@ -213,10 +215,10 @@ function createMockApi(): SilkRoadAPI {
               }
             ]
           : [];
-        const content = `I would connect this passage to the chapter's larger theme: ${
+        const content = formatDemoAssistantMessage(
           userMessage?.content || "the selected text"
-        }.`;
-        const chunks = content.match(/.{1,12}/g) ?? [content];
+        );
+        const chunks = content.match(/[\s\S]{1,12}/g) ?? [content];
 
         if (searchResults.length) {
           handlers.onSearchResults?.(searchResults);
@@ -260,4 +262,16 @@ function createMockApi(): SilkRoadAPI {
       dismiss: async () => {}
     }
   };
+}
+
+function formatDemoAssistantMessage(prompt: string): string {
+  return [
+    `This is a **reading note** for: ${prompt}`,
+    "",
+    "> A route is also a habit of attention.",
+    "",
+    "- It connects the passage to the chapter's larger theme.",
+    "- It keeps the answer compact enough for the side panel.",
+    "- Inline `code-style` text and links like https://example.com render safely."
+  ].join("\n");
 }

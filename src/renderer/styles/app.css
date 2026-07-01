@@ -869,7 +869,6 @@ textarea:focus {
   max-width: 100%;
   padding: 10px 12px;
   border-radius: 8px;
-  white-space: pre-wrap;
   line-height: 1.45;
 }
 
@@ -877,12 +876,14 @@ textarea:focus {
   align-self: flex-end;
   color: white;
   background: var(--main);
+  white-space: pre-wrap;
 }
 
 .message.assistant {
   align-self: flex-start;
   color: var(--text);
   background: #f0ede5;
+  white-space: normal;
 }
 
 .message.assistant.streaming {
@@ -892,6 +893,109 @@ textarea:focus {
 .message.assistant.error {
   color: #7f1d1d;
   background: #fee2e2;
+  white-space: pre-wrap;
+}
+
+.markdown-message {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-wrap: anywhere;
+}
+
+.markdown-message :first-child {
+  margin-top: 0;
+}
+
+.markdown-message :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-message p {
+  margin: 0;
+}
+
+.markdown-message h2,
+.markdown-message h3,
+.markdown-message h4 {
+  margin: 4px 0 0;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.28;
+}
+
+.markdown-message blockquote {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  color: rgba(37, 35, 55, 0.88);
+  background: rgba(255, 253, 249, 0.72);
+}
+
+.markdown-message ul,
+.markdown-message ol {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.markdown-message li {
+  padding-left: 2px;
+}
+
+.markdown-message strong {
+  font-weight: 750;
+}
+
+.markdown-message em {
+  font-style: italic;
+}
+
+.markdown-message a {
+  color: var(--accent-strong);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.markdown-message a:hover {
+  text-decoration: underline;
+}
+
+.markdown-message code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  font-family: "SFMono-Regular", "SF Mono", Consolas, monospace;
+  font-size: 0.9em;
+  color: #232032;
+  background: rgba(255, 253, 249, 0.86);
+}
+
+.markdown-message pre {
+  margin: 0;
+  padding: 10px;
+  border: 1px solid rgba(222, 219, 211, 0.9);
+  border-radius: 8px;
+  overflow: auto;
+  color: #232032;
+  background: rgba(255, 253, 249, 0.92);
+}
+
+.markdown-message pre span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-family: "SFMono-Regular", "SF Mono", Consolas, monospace;
+  font-size: 11px;
+}
+
+.markdown-message pre code {
+  display: block;
+  padding: 0;
+  background: transparent;
+  white-space: pre;
 }
 
 .typing-indicator {

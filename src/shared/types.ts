@@ -158,7 +158,7 @@ export interface SilkRoadAPI {
     chat(request: ChatRequest): Promise<ChatResponse>;
     translate(request: TranslateRequest): Promise<TranslateResponse>;
   };
-  translation: {
+  translation?: {
     translate(request: TranslateRequest): Promise<TranslateResponse>;
   };
 }

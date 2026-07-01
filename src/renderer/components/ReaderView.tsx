@@ -302,7 +302,14 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
       position: popoverPosition
     });
     try {
-      const response = await window.silkroad.translation.translate({
+      const translate = window.silkroad.translation?.translate;
+      if (!translate) {
+        throw new Error(
+          "Apple Translation bridge is not loaded yet. Please restart SilkRoad so the updated preload script can load."
+        );
+      }
+
+      const response = await translate({
         text: selection.text,
         targetLanguage: settings.targetLanguage,
         context: getReaderContext()

@@ -31,8 +31,13 @@ app.whenReady().then(async () => {
   await step("load reader notes", () => loadScreen(win, "reader", "annotations"));
   await step("screenshot reader notes", () => screenshot(win, "03-reader-notes.png"));
 
-  await step("load reader translation", () => loadScreen(win, "reader", "translate"));
-  await step("screenshot translation", () => screenshot(win, "04-reader-translate.png"));
+  await step("open reader translation popover", async () => {
+    await clickText(win, "翻译");
+    await wait(350);
+  });
+  await step("screenshot translation popover", () =>
+    screenshot(win, "04-reader-translation-popover.png")
+  );
 
   await step("load reader ai", () => loadScreen(win, "reader", "ai"));
   await step("screenshot ai", () => screenshot(win, "05-reader-ai.png"));

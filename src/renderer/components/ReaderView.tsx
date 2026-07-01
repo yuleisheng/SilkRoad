@@ -39,16 +39,25 @@ interface ActiveSelection {
   };
 }
 
-type SideTab = "annotations" | "translate" | "ai";
+type SideTab = "annotations" | "ai";
+
+interface TranslationPopover {
+  status: "loading" | "ready" | "error";
+  text?: string;
+  error?: string;
+  position?: ActiveSelection["toolbarPosition"];
+}
 
 export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderViewProps) {
   const bookPaneRef = useRef<HTMLDivElement | null>(null);
   const selectionToolbarRef = useRef<HTMLDivElement | null>(null);
+  const translationPopoverRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<HTMLDivElement | null>(null);
   const renditionRef = useRef<any>(null);
   const epubRef = useRef<any>(null);
   const activeContentsRef = useRef<any>(null);
   const contentsPointerCleanupRef = useRef<(() => void) | null>(null);
+  const translationRequestIdRef = useRef(0);
   const isMockReader = book.readerUrl.startsWith("mock-book://");
   const [annotations, setAnnotations] = useState<AnnotationRecord[]>([]);
   const [selection, setSelection] = useState<ActiveSelection | null>(null);
@@ -57,7 +66,8 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
   const [sideTab, setSideTab] = useState<SideTab>(getInitialSideTab);
   const [sidePanelOpen, setSidePanelOpen] = useState(true);
   const [noteDraft, setNoteDraft] = useState("");
-  const [translation, setTranslation] = useState("");
+  const [translationPopover, setTranslationPopover] =
+    useState<TranslationPopover | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [aiInput, setAiInput] = useState("");
   const [useWebSearch, setUseWebSearch] = useState(true);
@@ -79,6 +89,10 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
       }
 
       if (selectionToolbarRef.current?.contains(target)) {
+        return;
+      }
+
+      if (translationPopoverRef.current?.contains(target)) {
         return;
       }
 
@@ -116,9 +130,6 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
         });
         setSelectionUiVisible(true);
         setSideTab(initialTab);
-        if (initialTab === "translate") {
-          setTranslation("【简体中文】一条道路也是一种注意力的习惯。");
-        }
         if (initialTab === "ai") {
           setMessages([
             {
@@ -147,7 +158,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
       setError(null);
       setReaderStatus("loading");
       dismissSelectionUi({ clearContext: true });
-      setTranslation("");
+      setTranslationPopover(null);
       setCurrentChapterText("");
       viewerRef.current.innerHTML = "";
 
@@ -280,20 +291,39 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
       return;
     }
 
+    const popoverPosition = getPopoverPosition(selection);
+    const translationRequestId = translationRequestIdRef.current + 1;
+    translationRequestIdRef.current = translationRequestId;
     setBusy(true);
     setError(null);
-    setSideTab("translate");
-    setSidePanelOpen(true);
-    dismissSelectionUi();
+    dismissSelectionUi({ cancelTranslation: false });
+    setTranslationPopover({
+      status: "loading",
+      position: popoverPosition
+    });
     try {
       const response = await window.silkroad.ai.translate({
         text: selection.text,
         targetLanguage: settings.targetLanguage,
         context: getReaderContext()
       });
-      setTranslation(response.text);
+      if (translationRequestIdRef.current !== translationRequestId) {
+        return;
+      }
+      setTranslationPopover({
+        status: "ready",
+        text: response.text,
+        position: popoverPosition
+      });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      if (translationRequestIdRef.current !== translationRequestId) {
+        return;
+      }
+      setTranslationPopover({
+        status: "error",
+        error: caught instanceof Error ? caught.message : String(caught),
+        position: popoverPosition
+      });
     } finally {
       setBusy(false);
     }
@@ -372,9 +402,16 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
     dismissSelectionUi();
   }
 
-  function dismissSelectionUi({ clearContext = false } = {}) {
+  function dismissSelectionUi({
+    clearContext = false,
+    cancelTranslation = true
+  } = {}) {
     clearNativeSelection();
     setSelectionUiVisible(false);
+    if (cancelTranslation) {
+      translationRequestIdRef.current += 1;
+      setTranslationPopover(null);
+    }
 
     if (clearContext) {
       setSelection(null);
@@ -410,6 +447,18 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
     documentElement.addEventListener("pointerdown", handleContentsPointerDown, true);
     contentsPointerCleanupRef.current = () => {
       documentElement.removeEventListener("pointerdown", handleContentsPointerDown, true);
+    };
+  }
+
+  function getPopoverPosition(activeSelection: ActiveSelection) {
+    const position = activeSelection.toolbarPosition;
+    if (!position) {
+      return undefined;
+    }
+
+    return {
+      left: position.left,
+      top: Math.max(132, position.top)
     };
   }
 
@@ -466,6 +515,33 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
               </button>
             </div>
           ) : null}
+          {translationPopover ? (
+            <div
+              ref={translationPopoverRef}
+              className={`translation-popover${
+                translationPopover.position ? " positioned" : ""
+              }`}
+              style={
+                translationPopover.position
+                  ? {
+                      left: translationPopover.position.left,
+                      top: translationPopover.position.top
+                    }
+                  : undefined
+              }
+            >
+              <div className="translation-popover-label">
+                {settings.targetLanguage}
+              </div>
+              <div className="translation-popover-body">
+                {translationPopover.status === "loading"
+                  ? "翻译中..."
+                  : translationPopover.status === "error"
+                    ? translationPopover.error
+                    : translationPopover.text}
+              </div>
+            </div>
+          ) : null}
           {isMockReader ? <DemoReaderPage /> : <div ref={viewerRef} className="epub-viewer" />}
           <div className="page-controls" aria-label="阅读导航">
             <button
@@ -502,12 +578,6 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
                 onClick={() => setSideTab("annotations")}
               >
                 Notes
-              </button>
-              <button
-                className={sideTab === "translate" ? "active" : ""}
-                onClick={() => setSideTab("translate")}
-              >
-                翻译
               </button>
               <button
                 className={sideTab === "ai" ? "active" : ""}
@@ -561,14 +631,6 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
                       </button>
                     </article>
                   ))}
-                </div>
-              </div>
-            ) : null}
-
-            {sideTab === "translate" ? (
-              <div className="side-section">
-                <div className="translation-box">
-                  {busy ? "翻译中..." : translation || " "}
                 </div>
               </div>
             ) : null}
@@ -736,8 +798,8 @@ function clamp(value: number, min: number, max: number): number {
 
 function getInitialSideTab(): SideTab {
   const tab = new URLSearchParams(window.location.search).get("demoTab");
-  if (tab === "translate" || tab === "ai") {
-    return tab;
+  if (tab === "ai") {
+    return "ai";
   }
   return "annotations";
 }

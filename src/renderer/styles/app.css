@@ -864,13 +864,40 @@ textarea:focus {
 }
 
 .chat-input {
-  display: grid;
-  gap: 9px;
+  position: relative;
+  display: block;
 }
 
 .chat-input textarea {
   min-height: 88px;
   max-height: 160px;
+  padding-right: 54px;
+  padding-bottom: 44px;
+  resize: vertical;
+}
+
+.chat-send-button {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  color: #fff;
+  background: var(--main);
+  box-shadow: 0 8px 22px rgba(31, 29, 48, 0.16);
+}
+
+.chat-send-button:hover:not(:disabled) {
+  background: var(--main-2);
+}
+
+.chat-send-button:disabled {
+  cursor: default;
+  opacity: 0.42;
+  box-shadow: none;
 }
 
 @media (max-width: 1120px) {

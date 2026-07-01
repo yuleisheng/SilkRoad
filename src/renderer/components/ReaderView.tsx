@@ -8,7 +8,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Save,
-  Search,
+  Send,
   StickyNote,
   Trash2,
   X
@@ -59,6 +59,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
   const contentsPointerCleanupRef = useRef<(() => void) | null>(null);
   const translationRequestIdRef = useRef(0);
   const systemTranslationVisibleRef = useRef(false);
+  const previousSidePanelOpenRef = useRef(true);
   const isMockReader = book.readerUrl.startsWith("mock-book://");
   const [annotations, setAnnotations] = useState<AnnotationRecord[]>([]);
   const [selection, setSelection] = useState<ActiveSelection | null>(null);
@@ -71,7 +72,6 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
     useState<TranslationPopover | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [aiInput, setAiInput] = useState("");
-  const [useWebSearch, setUseWebSearch] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [readerStatus, setReaderStatus] = useState<"idle" | "loading" | "ready">(
@@ -114,6 +114,33 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
     },
     []
   );
+
+  useEffect(() => {
+    if (previousSidePanelOpenRef.current === sidePanelOpen) {
+      return;
+    }
+    previousSidePanelOpenRef.current = sidePanelOpen;
+
+    if (isMockReader || readerStatus !== "ready") {
+      return;
+    }
+
+    let nestedAnimationFrame = 0;
+    const animationFrame = window.requestAnimationFrame(() => {
+      nestedAnimationFrame = window.requestAnimationFrame(() => {
+        resizeRenditionToViewer();
+      });
+    });
+    const timeout = window.setTimeout(() => {
+      resizeRenditionToViewer();
+    }, 260);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      window.cancelAnimationFrame(nestedAnimationFrame);
+      window.clearTimeout(timeout);
+    };
+  }, [isMockReader, readerStatus, sidePanelOpen]);
 
   useEffect(() => {
     let disposed = false;
@@ -385,7 +412,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
       const response = await window.silkroad.ai.chat({
         messages: nextMessages,
         context: getReaderContext(),
-        useWebSearch,
+        useWebSearch: true,
         providerId: settings.defaultChatProvider,
         searchProviderId: settings.defaultSearchProvider
       });
@@ -460,6 +487,16 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
 
     systemTranslationVisibleRef.current = false;
     void window.silkroad.translation?.dismiss?.();
+  }
+
+  function resizeRenditionToViewer() {
+    const rendition = renditionRef.current;
+    const viewer = viewerRef.current;
+    if (!rendition || !viewer || viewer.clientWidth <= 0 || viewer.clientHeight <= 0) {
+      return;
+    }
+
+    rendition.resize?.(viewer.clientWidth, viewer.clientHeight);
   }
 
   function clearNativeSelection() {
@@ -703,16 +740,6 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
                   </div>
                 ) : null}
 
-                <label className="checkbox-row compact">
-                  <input
-                    type="checkbox"
-                    checked={useWebSearch}
-                    onChange={(event) => setUseWebSearch(event.target.checked)}
-                  />
-                  <Search size={15} />
-                  Web search
-                </label>
-
                 <div className="chat-input">
                   <textarea
                     value={aiInput}
@@ -724,12 +751,13 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
                     }}
                   />
                   <button
-                    className="primary-button"
+                    className="chat-send-button"
                     onClick={() => void sendChat()}
-                    disabled={busy}
+                    disabled={busy || !aiInput.trim()}
+                    title="发送"
+                    aria-label="发送"
                   >
-                    <MessageSquare size={16} />
-                    发送
+                    <Send size={17} />
                   </button>
                 </div>
               </div>

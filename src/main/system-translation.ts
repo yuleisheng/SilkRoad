@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import type { TranslateRequest, TranslateResponse } from "../shared/types";
 
-const APPLE_TRANSLATION_TIMEOUT_MS = 12_000;
+const APPLE_TRANSLATION_TIMEOUT_MS = 6_000;
 
 export async function translateWithAppleSystem(
   request: TranslateRequest
@@ -96,8 +96,16 @@ function readHelperError(errorOutput: string): string {
 
   try {
     const parsed = JSON.parse(errorOutput) as { error?: string };
-    return parsed.error || "Apple Translation failed.";
+    return normalizeAppleTranslationError(parsed.error || "Apple Translation failed.");
   } catch {
-    return errorOutput;
+    return normalizeAppleTranslationError(errorOutput);
   }
+}
+
+function normalizeAppleTranslationError(message: string): string {
+  if (message.includes("Unable to Translate")) {
+    return "Apple Translation is unavailable for this selection right now.";
+  }
+
+  return message;
 }

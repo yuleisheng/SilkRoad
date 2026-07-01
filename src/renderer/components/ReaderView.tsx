@@ -317,6 +317,16 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
       if (translationRequestIdRef.current !== translationRequestId) {
         return;
       }
+      if (response.ok === false) {
+        setTranslationPopover({
+          status: "error",
+          error:
+            response.error ||
+            "Apple Translation is unavailable for this selection right now.",
+          position: popoverPosition
+        });
+        return;
+      }
       setTranslationPopover({
         status: "ready",
         text: response.text,

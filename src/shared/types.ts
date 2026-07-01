@@ -114,6 +114,8 @@ export interface TranslateRequest {
 export interface TranslateResponse {
   text: string;
   providerId: TranslationProviderKind;
+  ok?: boolean;
+  error?: string;
 }
 
 export interface ImportAnnotationsPayload {

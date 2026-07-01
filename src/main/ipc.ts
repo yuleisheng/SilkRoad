@@ -102,11 +102,30 @@ export function registerIpcHandlers(
     providerManager.translate(request)
   );
 
-  ipcMain.handle("translation:translate", (_event, request: TranslateRequest) =>
-    translateWithAppleSystem(request)
-  );
+  ipcMain.handle("translation:translate", async (_event, request: TranslateRequest) => {
+    try {
+      return await translateWithAppleSystem(request);
+    } catch (error) {
+      return {
+        ok: false,
+        providerId: "apple-system",
+        text: "",
+        error: formatSystemTranslationError(error)
+      };
+    }
+  });
 
   ipcMain.handle("ai:chat", (_event, request: ChatRequest) =>
     providerManager.chat(request)
   );
+}
+
+function formatSystemTranslationError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (message.includes("Unable to Translate")) {
+    return "Apple Translation is unavailable for this selection right now.";
+  }
+
+  return message;
 }

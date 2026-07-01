@@ -42,13 +42,11 @@ let settings: AppSettings = {
     ...DEFAULT_SETTINGS.providers,
     openrouter: {
       ...DEFAULT_SETTINGS.providers.openrouter,
-      enabled: true,
       model: "openai/gpt-4o-mini",
       apiKeyStored: true
     },
     "ollama-cloud": {
       ...DEFAULT_SETTINGS.providers["ollama-cloud"],
-      enabled: true,
       model: "gpt-oss:20b-cloud",
       apiKeyStored: true
     }

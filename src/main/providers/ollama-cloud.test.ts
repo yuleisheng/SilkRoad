@@ -33,7 +33,6 @@ describe("OllamaCloudProvider", () => {
     const settings: ProviderSettings = {
       id: "ollama-cloud",
       label: "Ollama Cloud",
-      enabled: true,
       model: "gpt-oss:20b-cloud",
       apiKey: "ollama-key",
       baseUrl: "https://ollama.com"

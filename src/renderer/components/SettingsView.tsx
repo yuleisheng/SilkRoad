@@ -129,16 +129,6 @@ export function SettingsView({
                   <span className="tag">{t("settings.experimental")}</span>
                 ) : null}
               </div>
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={selectedProvider.enabled}
-                  onChange={(event) =>
-                    updateProvider(selectedProviderId, { enabled: event.target.checked })
-                  }
-                />
-                <span />
-              </label>
             </div>
 
             <div className="provider-fields">

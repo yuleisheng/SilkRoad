@@ -366,7 +366,6 @@ function sanitizeProviderSettings(provider: ProviderSettings): ProviderSettings 
   return {
     id: provider.id,
     label: provider.label,
-    enabled: provider.enabled,
     model: provider.model,
     baseUrl: provider.baseUrl,
     apiKey: provider.apiKey,

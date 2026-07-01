@@ -51,7 +51,6 @@ export interface AnnotationInput {
 export interface ProviderSettings {
   id: ProviderKind;
   label: string;
-  enabled: boolean;
   model: string;
   baseUrl?: string;
   apiKey?: string;

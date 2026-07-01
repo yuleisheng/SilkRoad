@@ -68,10 +68,6 @@ export class ProviderManager {
     const providerSettings = settings.providers[providerId];
     const provider = this.chatProviders[providerId];
 
-    if (!providerSettings.enabled) {
-      throw new Error(`${providerSettings.label} is disabled.`);
-    }
-
     const text = await collectStream(provider.translate(request, providerSettings));
     return {
       text,
@@ -84,10 +80,6 @@ export class ProviderManager {
     const providerId = request.providerId ?? settings.defaultChatProvider;
     const providerSettings = settings.providers[providerId];
     const provider = this.chatProviders[providerId];
-
-    if (!providerSettings.enabled) {
-      throw new Error(`${providerSettings.label} is disabled.`);
-    }
 
     const lastUserMessage = [...request.messages].reverse().find(
       (message) => message.role === "user"
@@ -135,7 +127,7 @@ export class ProviderManager {
 
     const searchProvider = this.searchProviders[providerId];
 
-    if (!searchProvider || !providerSettings.enabled) {
+    if (!searchProvider) {
       return [];
     }
 

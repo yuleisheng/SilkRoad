@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import type {
   AnnotationInput,
@@ -42,7 +41,7 @@ const api: SilkRoadAPI = {
   ai: {
     chat: (request: ChatRequest) => ipcRenderer.invoke("ai:chat", request),
     streamChat: (request: ChatRequest, handlers: ChatStreamHandlers) => {
-      const streamId = randomUUID();
+      const streamId = createStreamId();
       const channel = `ai:chat:stream:${streamId}`;
       let completed = false;
       let listener: (event: IpcRendererEvent, payload: ChatStreamEvent) => void;
@@ -110,3 +109,10 @@ const api: SilkRoadAPI = {
 };
 
 contextBridge.exposeInMainWorld("silkroad", api);
+
+function createStreamId(): string {
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  );
+}

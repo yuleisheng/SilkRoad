@@ -355,6 +355,7 @@ textarea:focus {
 
 .provider-list {
   display: grid;
+  align-content: start;
   gap: 14px;
   padding-right: 4px;
   overflow: auto;

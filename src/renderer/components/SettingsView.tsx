@@ -25,6 +25,9 @@ export function SettingsView({
   const [health, setHealth] = useState<Partial<Record<ProviderKind, ProviderHealth>>>({});
   const [saving, setSaving] = useState(false);
   const t = getTranslator(draft.appLanguage);
+  const selectedProviderId = draft.defaultChatProvider;
+  const selectedProvider = draft.providers[selectedProviderId];
+  const selectedProviderHealth = health[selectedProviderId];
 
   function updateProvider(providerId: ProviderKind, patch: Record<string, unknown>) {
     setDraft((current) => ({
@@ -118,98 +121,95 @@ export function SettingsView({
         </section>
 
         <section className="provider-list">
-          {PROVIDER_ORDER.map((providerId) => {
-            const provider = draft.providers[providerId];
-            const providerHealth = health[providerId];
+          <article className="provider-card" key={selectedProviderId}>
+            <div className="provider-header">
+              <div>
+                <h2>{selectedProvider.label}</h2>
+                {selectedProvider.experimental ? (
+                  <span className="tag">{t("settings.experimental")}</span>
+                ) : null}
+              </div>
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={selectedProvider.enabled}
+                  onChange={(event) =>
+                    updateProvider(selectedProviderId, { enabled: event.target.checked })
+                  }
+                />
+                <span />
+              </label>
+            </div>
 
-            return (
-              <article className="provider-card" key={providerId}>
-                <div className="provider-header">
-                  <div>
-                    <h2>{provider.label}</h2>
-                    {provider.experimental ? (
-                      <span className="tag">{t("settings.experimental")}</span>
-                    ) : null}
-                  </div>
-                  <label className="switch">
-                    <input
-                      type="checkbox"
-                      checked={provider.enabled}
-                      onChange={(event) =>
-                        updateProvider(providerId, { enabled: event.target.checked })
-                      }
-                    />
-                    <span />
-                  </label>
-                </div>
+            <div className="provider-fields">
+              {selectedProviderId !== "codex-subscription" ? (
+                <label>
+                  {t("settings.baseUrl")}
+                  <input
+                    value={selectedProvider.baseUrl ?? ""}
+                    onChange={(event) =>
+                      updateProvider(selectedProviderId, { baseUrl: event.target.value })
+                    }
+                  />
+                </label>
+              ) : null}
 
-                <div className="provider-fields">
-                  {providerId !== "codex-subscription" ? (
-                    <label>
-                      {t("settings.baseUrl")}
-                      <input
-                        value={provider.baseUrl ?? ""}
-                        onChange={(event) =>
-                          updateProvider(providerId, { baseUrl: event.target.value })
-                        }
-                      />
-                    </label>
-                  ) : null}
+              <label>
+                {t("settings.model")}
+                <input
+                  value={selectedProvider.model}
+                  placeholder={
+                    selectedProviderId === "codex-subscription"
+                      ? t("settings.modelOptional")
+                      : t("settings.modelPlaceholder")
+                  }
+                  onChange={(event) =>
+                    updateProvider(selectedProviderId, { model: event.target.value })
+                  }
+                />
+              </label>
 
-                  <label>
-                    {t("settings.model")}
-                    <input
-                      value={provider.model}
-                      placeholder={
-                        providerId === "codex-subscription"
-                          ? t("settings.modelOptional")
-                          : t("settings.modelPlaceholder")
-                      }
-                      onChange={(event) =>
-                        updateProvider(providerId, { model: event.target.value })
-                      }
-                    />
-                  </label>
+              {selectedProviderId !== "codex-subscription" ? (
+                <label>
+                  {t("settings.apiKey")}
+                  <input
+                    type="password"
+                    placeholder={
+                      selectedProvider.apiKeyStored
+                        ? t("settings.apiKeyStored")
+                        : t("settings.apiKeyMissing")
+                    }
+                    onChange={(event) =>
+                      updateProvider(selectedProviderId, {
+                        apiKey: event.target.value,
+                        clearApiKey: false
+                      })
+                    }
+                  />
+                </label>
+              ) : null}
+            </div>
 
-                  {providerId !== "codex-subscription" ? (
-                    <label>
-                      {t("settings.apiKey")}
-                      <input
-                        type="password"
-                        placeholder={
-                          provider.apiKeyStored
-                            ? t("settings.apiKeyStored")
-                            : t("settings.apiKeyMissing")
-                        }
-                        onChange={(event) =>
-                          updateProvider(providerId, {
-                            apiKey: event.target.value,
-                            clearApiKey: false
-                          })
-                        }
-                      />
-                    </label>
-                  ) : null}
-                </div>
-
-                <div className="provider-actions">
-                  <button
-                    className="secondary-button"
-                    onClick={() => void validate(providerId)}
-                  >
-                    <ShieldCheck size={16} />
-                    {t("settings.check")}
-                  </button>
-                  {providerHealth ? (
-                    <span className={providerHealth.ok ? "health ok" : "health fail"}>
-                      {providerHealth.ok ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
-                      {providerHealth.message}
-                    </span>
-                  ) : null}
-                </div>
-              </article>
-            );
-          })}
+            <div className="provider-actions">
+              <button
+                className="secondary-button"
+                onClick={() => void validate(selectedProviderId)}
+              >
+                <ShieldCheck size={16} />
+                {t("settings.check")}
+              </button>
+              {selectedProviderHealth ? (
+                <span className={selectedProviderHealth.ok ? "health ok" : "health fail"}>
+                  {selectedProviderHealth.ok ? (
+                    <CheckCircle2 size={16} />
+                  ) : (
+                    <XCircle size={16} />
+                  )}
+                  {selectedProviderHealth.message}
+                </span>
+              ) : null}
+            </div>
+          </article>
         </section>
       </div>
     </section>

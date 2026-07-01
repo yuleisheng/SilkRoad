@@ -722,25 +722,24 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
                   ))}
                 </div>
 
-                {selection ? (
-                  <div className="ai-context">
-                    <div className="ai-context-quote">“{selection.text}”</div>
-                    <div className="ai-context-chip">
-                      <MessageSquare size={15} />
-                      <span>1 selection</span>
-                      <button
-                        className="ai-context-clear"
-                        title="移除选区上下文"
-                        aria-label="移除选区上下文"
-                        onClick={() => dismissSelectionUi({ clearContext: true })}
-                      >
-                        <X size={15} />
-                      </button>
+                <div className={selection ? "chat-input has-context" : "chat-input"}>
+                  {selection ? (
+                    <div className="chat-context">
+                      <div className="chat-context-preview">“{selection.text}”</div>
+                      <div className="chat-context-chip">
+                        <MessageSquare size={15} />
+                        <span>1 selection</span>
+                        <button
+                          className="ai-context-clear"
+                          title="移除选区上下文"
+                          aria-label="移除选区上下文"
+                          onClick={() => dismissSelectionUi({ clearContext: true })}
+                        >
+                          <X size={15} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ) : null}
-
-                <div className="chat-input">
+                  ) : null}
                   <textarea
                     value={aiInput}
                     onChange={(event) => setAiInput(event.target.value)}

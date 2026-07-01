@@ -5,8 +5,6 @@ import {
   Highlighter,
   Languages,
   MessageSquare,
-  PanelRightClose,
-  PanelRightOpen,
   Save,
   Send,
   StickyNote,
@@ -59,14 +57,12 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
   const contentsPointerCleanupRef = useRef<(() => void) | null>(null);
   const translationRequestIdRef = useRef(0);
   const systemTranslationVisibleRef = useRef(false);
-  const previousSidePanelOpenRef = useRef(true);
   const isMockReader = book.readerUrl.startsWith("mock-book://");
   const [annotations, setAnnotations] = useState<AnnotationRecord[]>([]);
   const [selection, setSelection] = useState<ActiveSelection | null>(null);
   const [selectionUiVisible, setSelectionUiVisible] = useState(false);
   const [currentChapterText, setCurrentChapterText] = useState("");
   const [sideTab, setSideTab] = useState<SideTab>(getInitialSideTab);
-  const [sidePanelOpen, setSidePanelOpen] = useState(true);
   const [noteDraft, setNoteDraft] = useState("");
   const [translationPopover, setTranslationPopover] =
     useState<TranslationPopover | null>(null);
@@ -114,33 +110,6 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
     },
     []
   );
-
-  useEffect(() => {
-    if (previousSidePanelOpenRef.current === sidePanelOpen) {
-      return;
-    }
-    previousSidePanelOpenRef.current = sidePanelOpen;
-
-    if (isMockReader || readerStatus !== "ready") {
-      return;
-    }
-
-    let nestedAnimationFrame = 0;
-    const animationFrame = window.requestAnimationFrame(() => {
-      nestedAnimationFrame = window.requestAnimationFrame(() => {
-        resizeRenditionToViewer();
-      });
-    });
-    const timeout = window.setTimeout(() => {
-      resizeRenditionToViewer();
-    }, 260);
-
-    return () => {
-      window.cancelAnimationFrame(animationFrame);
-      window.cancelAnimationFrame(nestedAnimationFrame);
-      window.clearTimeout(timeout);
-    };
-  }, [isMockReader, readerStatus, sidePanelOpen]);
 
   useEffect(() => {
     let disposed = false;
@@ -406,7 +375,6 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
     setBusy(true);
     setError(null);
     setSideTab("ai");
-    setSidePanelOpen(true);
 
     try {
       const response = await window.silkroad.ai.chat({
@@ -457,7 +425,6 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
 
   function openSideTab(tab: SideTab) {
     setSideTab(tab);
-    setSidePanelOpen(true);
     dismissSelectionUi();
   }
 
@@ -487,16 +454,6 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
 
     systemTranslationVisibleRef.current = false;
     void window.silkroad.translation?.dismiss?.();
-  }
-
-  function resizeRenditionToViewer() {
-    const rendition = renditionRef.current;
-    const viewer = viewerRef.current;
-    if (!rendition || !viewer || viewer.clientWidth <= 0 || viewer.clientHeight <= 0) {
-      return;
-    }
-
-    rendition.resize?.(viewer.clientWidth, viewer.clientHeight);
   }
 
   function clearNativeSelection() {
@@ -555,7 +512,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
         </div>
       </header>
 
-      <div className={sidePanelOpen ? "reader-body" : "reader-body side-collapsed"}>
+      <div className="reader-body">
         <div ref={bookPaneRef} className="book-pane">
           {readerStatus === "loading" ? (
             <div className="reader-loading">Loading EPUB...</div>
@@ -637,18 +594,10 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
             >
               <ChevronRight size={18} />
             </button>
-            <button
-              className="icon-button page-button"
-              title={sidePanelOpen ? "隐藏侧栏" : "显示侧栏"}
-              onClick={() => setSidePanelOpen((current) => !current)}
-            >
-              {sidePanelOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
-            </button>
           </div>
         </div>
 
-        {sidePanelOpen ? (
-          <aside className="reader-side">
+        <aside className="reader-side">
             <div className="tabs">
               <button
                 className={sideTab === "annotations" ? "active" : ""}
@@ -761,8 +710,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
                 </div>
               </div>
             ) : null}
-          </aside>
-        ) : null}
+        </aside>
       </div>
     </section>
   );

@@ -479,10 +479,6 @@ textarea:focus {
   padding: 0 18px 18px 14px;
 }
 
-.reader-body.side-collapsed {
-  grid-template-columns: minmax(0, 1fr);
-}
-
 .book-pane {
   position: relative;
   min-width: 0;
@@ -795,6 +791,8 @@ textarea:focus {
   z-index: 2;
   top: 10px;
   left: 10px;
+  right: 54px;
+  max-width: calc(100% - 64px);
 }
 
 .chat-context-chip {
@@ -821,8 +819,8 @@ textarea:focus {
   position: absolute;
   left: 0;
   bottom: calc(100% + 8px);
-  width: min(380px, calc(100vw - 120px));
-  max-width: calc(100vw - 120px);
+  width: 100%;
+  max-width: 100%;
   padding: 9px 14px;
   border: 1px solid rgba(222, 219, 211, 0.9);
   border-radius: 18px;
@@ -835,9 +833,12 @@ textarea:focus {
   transition:
     opacity 140ms ease,
     transform 140ms ease;
+  display: -webkit-box;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-height: 1.38;
+  white-space: normal;
 }
 
 .chat-context:hover .chat-context-preview,

@@ -4,6 +4,7 @@ import {
   buildReaderContextBlock,
   formatSearchResults
 } from "../../shared/ai-context";
+import { shouldUseWebSearch } from "../../shared/search-intent";
 import type {
   AppSettings,
   ChatMessage,
@@ -26,8 +27,8 @@ import type { ChatProvider, SearchProvider } from "./types";
 const SYSTEM_PROMPT = [
   "You are SilkRoad, an AI reading companion embedded in a private EPUB reader.",
   "Help explain, translate, compare, and reason about passages.",
-  "When web search results are present, cite them briefly by title or URL.",
-  "Do not claim you searched the web unless search results were provided."
+  "When web search results are present from the app or provider, cite them briefly by title or URL.",
+  "Do not claim you searched the web unless search results were provided by the app or provider."
 ].join(" ");
 
 export class ProviderManager {
@@ -91,18 +92,18 @@ export class ProviderManager {
     const lastUserMessage = [...request.messages].reverse().find(
       (message) => message.role === "user"
     );
+    const searchQuery = lastUserMessage?.content ?? request.context.selectedText;
     const searchResults = await this.maybeSearch(
-      request,
-      settings,
-      lastUserMessage?.content ?? request.context.selectedText
+      providerId,
+      providerSettings,
+      searchQuery
     );
 
     const messages = buildMessages(request.messages, request.context, searchResults);
     const text = await collectStream(
       provider.streamChat(
         {
-          webSearchEnabled:
-            Boolean(providerSettings.webSearchEnabled) && request.useWebSearch,
+          webSearchEnabled: this.shouldUseProviderNativeWebSearch(providerId, searchQuery),
           messages
         },
         providerSettings
@@ -121,23 +122,36 @@ export class ProviderManager {
   }
 
   private async maybeSearch(
-    request: ChatRequest,
-    settings: AppSettings,
+    providerId: ProviderKind,
+    providerSettings: AppSettings["providers"][ProviderKind],
     query: string
   ): Promise<SearchResult[]> {
-    if (!request.useWebSearch) {
+    if (
+      !shouldUseWebSearch(query) ||
+      this.shouldUseProviderNativeWebSearch(providerId, query)
+    ) {
       return [];
     }
 
-    const providerId = request.searchProviderId ?? settings.defaultSearchProvider;
-    const providerSettings = settings.providers[providerId];
     const searchProvider = this.searchProviders[providerId];
 
-    if (!searchProvider || !providerSettings.enabled || !providerSettings.webSearchEnabled) {
+    if (!searchProvider || !providerSettings.enabled) {
       return [];
     }
 
-    return searchProvider.search(query, providerSettings);
+    try {
+      return await searchProvider.search(query, providerSettings);
+    } catch (error) {
+      console.warn(
+        `SilkRoad web search failed for ${providerId}:`,
+        error instanceof Error ? error.message : error
+      );
+      return [];
+    }
+  }
+
+  private shouldUseProviderNativeWebSearch(providerId: ProviderKind, query: string): boolean {
+    return providerId === "openrouter" && shouldUseWebSearch(query);
   }
 
   private getSettings(): AppSettings {

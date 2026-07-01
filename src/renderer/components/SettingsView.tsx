@@ -61,7 +61,7 @@ export function SettingsView({
       <header className="topbar">
         <div>
           <h1>设置</h1>
-          <p>模型和联网搜索</p>
+          <p>模型 Provider</p>
         </div>
         <div className="topbar-actions">
           <button className="secondary-button" onClick={onClose}>
@@ -95,26 +95,6 @@ export function SettingsView({
             </select>
           </label>
 
-          <label>
-            默认搜索 Provider
-            <select
-              value={draft.defaultSearchProvider}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  defaultSearchProvider: event.target.value as ProviderKind
-                }))
-              }
-            >
-              {PROVIDER_ORDER.filter((providerId) =>
-                ["openrouter", "ollama-cloud"].includes(providerId)
-              ).map((providerId) => (
-                <option key={providerId} value={providerId}>
-                  {draft.providers[providerId].label}
-                </option>
-              ))}
-            </select>
-          </label>
         </section>
 
         <section className="provider-list">
@@ -181,19 +161,6 @@ export function SettingsView({
                     </label>
                   ) : null}
 
-                  <label className="checkbox-row">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(provider.webSearchEnabled)}
-                      disabled={providerId === "codex-subscription"}
-                      onChange={(event) =>
-                        updateProvider(providerId, {
-                          webSearchEnabled: event.target.checked
-                        })
-                      }
-                    />
-                    Web search
-                  </label>
                 </div>
 
                 <div className="provider-actions">

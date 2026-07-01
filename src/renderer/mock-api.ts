@@ -1,4 +1,5 @@
 import { DEFAULT_SETTINGS } from "../shared/default-settings";
+import { shouldUseWebSearch } from "../shared/search-intent";
 import type {
   AnnotationInput,
   AnnotationRecord,
@@ -169,9 +170,13 @@ function createMockApi(): SilkRoadAPI {
         const userMessage = request.messages
           .filter((message: ChatMessage) => message.role === "user")
           .at(-1);
+        const providerId = request.providerId ?? settings.defaultChatProvider;
+        const usesSearch =
+          ["openrouter", "ollama-cloud"].includes(providerId) &&
+          shouldUseWebSearch(userMessage?.content ?? "");
 
         return {
-          searchResults: request.useWebSearch
+          searchResults: usesSearch
             ? [
                 {
                   title: "Demo search result",

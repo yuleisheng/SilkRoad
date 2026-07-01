@@ -345,18 +345,30 @@ function mergeSettings(settings: Partial<AppSettings>): AppSettings {
   for (const providerId of Object.keys(DEFAULT_SETTINGS.providers) as Array<
     keyof AppSettings["providers"]
   >) {
-    providers[providerId] = {
+    providers[providerId] = sanitizeProviderSettings({
       ...DEFAULT_SETTINGS.providers[providerId],
       ...incomingProviders[providerId]
-    };
+    });
   }
 
   return {
     defaultChatProvider:
       settings.defaultChatProvider ?? DEFAULT_SETTINGS.defaultChatProvider,
-    defaultSearchProvider:
-      settings.defaultSearchProvider ?? DEFAULT_SETTINGS.defaultSearchProvider,
     providers
+  };
+}
+
+function sanitizeProviderSettings(provider: ProviderSettings): ProviderSettings {
+  return {
+    id: provider.id,
+    label: provider.label,
+    enabled: provider.enabled,
+    model: provider.model,
+    baseUrl: provider.baseUrl,
+    apiKey: provider.apiKey,
+    apiKeyStored: provider.apiKeyStored,
+    clearApiKey: provider.clearApiKey,
+    experimental: provider.experimental
   };
 }
 

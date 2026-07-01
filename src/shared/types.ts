@@ -55,13 +55,11 @@ export interface ProviderSettings {
   apiKey?: string;
   apiKeyStored?: boolean;
   clearApiKey?: boolean;
-  webSearchEnabled?: boolean;
   experimental?: boolean;
 }
 
 export interface AppSettings {
   defaultChatProvider: ProviderKind;
-  defaultSearchProvider: ProviderKind;
   providers: Record<ProviderKind, ProviderSettings>;
 }
 
@@ -92,10 +90,8 @@ export interface ReaderContext {
 
 export interface ChatRequest {
   providerId?: ProviderKind;
-  searchProviderId?: ProviderKind;
   messages: ChatMessage[];
   context: ReaderContext;
-  useWebSearch: boolean;
 }
 
 export interface ChatResponse {

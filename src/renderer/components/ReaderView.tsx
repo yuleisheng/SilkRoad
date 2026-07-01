@@ -380,9 +380,7 @@ export function ReaderView({ book, settings, onBack, onBookUpdated }: ReaderView
       const response = await window.silkroad.ai.chat({
         messages: nextMessages,
         context: getReaderContext(),
-        useWebSearch: true,
-        providerId: settings.defaultChatProvider,
-        searchProviderId: settings.defaultSearchProvider
+        providerId: settings.defaultChatProvider
       });
       setMessages((current) => [...current, response.message]);
     } catch (caught) {

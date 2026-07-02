@@ -3,6 +3,8 @@ dist/
 release/
 coverage/
 artifacts/
+build/.icon-icns/
+build/icon.iconset/
 *.log
 .DS_Store
 .env

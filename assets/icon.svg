@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title>SilkRoad app icon</title>
+  <desc>A flat open book under a quiet starry indigo sky.</desc>
+  <defs>
+    <linearGradient id="background" x1="168" y1="84" x2="858" y2="940" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#171529"/>
+      <stop offset="0.56" stop-color="#25233c"/>
+      <stop offset="1" stop-color="#514c78"/>
+    </linearGradient>
+    <radialGradient id="skyGlow" cx="512" cy="290" r="560" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#c9c5ff" stop-opacity="0.42"/>
+      <stop offset="0.44" stop-color="#8f86ff" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#171529" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="squircle">
+      <path d="M512 36c174 0 281 21 357 97 76 76 97 183 97 357v44c0 174-21 281-97 357-76 76-183 97-357 97s-281-21-357-97c-76-76-97-183-97-357v-44c0-174 21-281 97-357 76-76 183-97 357-97Z"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#squircle)">
+    <path d="M512 36c174 0 281 21 357 97 76 76 97 183 97 357v44c0 174-21 281-97 357-76 76-183 97-357 97s-281-21-357-97c-76-76-97-183-97-357v-44c0-174 21-281 97-357 76-76 183-97 357-97Z" fill="url(#background)"/>
+    <ellipse cx="510" cy="300" rx="470" ry="430" fill="url(#skyGlow)" opacity="0.86"/>
+    <path d="M96 746c132-64 229-86 340-62 118 25 216 9 333-58 83-48 153-62 255-29v427H96Z" fill="#0f0d1c" opacity="0.12"/>
+
+    <g>
+      <circle cx="312" cy="248" r="5" fill="#c9c5ff" opacity="0.68"/>
+      <circle cx="382" cy="188" r="4" fill="#fff2aa" opacity="0.62"/>
+      <circle cx="478" cy="228" r="3" fill="#fff2aa" opacity="0.48"/>
+      <circle cx="640" cy="210" r="6" fill="#c9c5ff" opacity="0.66"/>
+      <circle cx="724" cy="174" r="4" fill="#fff2aa" opacity="0.58"/>
+      <circle cx="792" cy="292" r="3" fill="#c9c5ff" opacity="0.5"/>
+    </g>
+
+    <g>
+      <ellipse cx="512" cy="758" rx="326" ry="38" fill="#05040b" opacity="0.18"/>
+      <path d="M512 412c-80-48-171-70-273-70-29 0-53 22-57 51l-43 303c-5 35 22 65 57 62 119-9 222 14 316 70Z" fill="#f6f0e4"/>
+      <path d="M512 412c80-48 171-70 273-70 29 0 53 22 57 51l43 303c5 35-22 65-57 62-119-9-222 14-316 70Z" fill="#fffaf0"/>
+      <path d="M512 412v416" fill="none" stroke="#8b8275" stroke-opacity="0.5" stroke-width="8" stroke-linecap="round"/>
+      <path d="M256 491c74 8 138 24 196 48" fill="none" stroke="#cfc7b9" stroke-opacity="0.68" stroke-width="9" stroke-linecap="round"/>
+      <path d="M254 564c82 8 153 27 214 56" fill="none" stroke="#cfc7b9" stroke-opacity="0.58" stroke-width="8" stroke-linecap="round"/>
+      <path d="M584 491c74-8 138-24 196-48" fill="none" stroke="#cfc7b9" stroke-opacity="0.64" stroke-width="9" stroke-linecap="round"/>
+      <path d="M566 564c82-8 153-27 214-56" fill="none" stroke="#cfc7b9" stroke-opacity="0.56" stroke-width="8" stroke-linecap="round"/>
+    </g>
+
+    <path d="M58 508c0-174 21-281 97-357 76-76 183-97 357-97s281 21 357 97" fill="none" stroke="#ffffff" stroke-opacity="0.11" stroke-width="24"/>
+    <path d="M512 36c174 0 281 21 357 97 76 76 97 183 97 357v44c0 174-21 281-97 357-76 76-183 97-357 97s-281-21-357-97c-76-76-97-183-97-357v-44c0-174 21-281 97-357 76-76 183-97 357-97Z" fill="none" stroke="#ffffff" stroke-opacity="0.13" stroke-width="18"/>
+  </g>
+</svg>

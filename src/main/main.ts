@@ -1,4 +1,5 @@
 import { app, BrowserWindow, protocol, shell } from "electron";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { registerBookProtocol } from "./book-protocol";
 import { registerIpcHandlers } from "./ipc";
@@ -26,6 +27,11 @@ async function createWindow(): Promise<void> {
   const distDir = path.resolve(__dirname, "..", "..");
   const preloadPath = path.join(distDir, "main", "preload", "preload.js");
   const rendererIndexPath = path.join(distDir, "renderer", "index.html");
+  const iconPath = getDevelopmentIconPath();
+
+  if (iconPath && process.platform === "darwin") {
+    app.dock?.setIcon(iconPath);
+  }
 
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -35,6 +41,7 @@ async function createWindow(): Promise<void> {
     titleBarStyle: "hidden",
     trafficLightPosition: { x: 8, y: 16 },
     backgroundColor: "#f6f6f3",
+    ...(iconPath ? { icon: iconPath } : {}),
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
@@ -64,6 +71,15 @@ async function createWindow(): Promise<void> {
   } else {
     await mainWindow.loadFile(rendererIndexPath);
   }
+}
+
+function getDevelopmentIconPath(): string | undefined {
+  if (app.isPackaged) {
+    return undefined;
+  }
+
+  const iconPath = path.join(process.cwd(), "build", "icon.png");
+  return existsSync(iconPath) ? iconPath : undefined;
 }
 
 app.whenReady().then(async () => {

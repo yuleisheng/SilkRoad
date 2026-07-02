@@ -12,6 +12,7 @@
     "build:main": "node scripts/clean-main-dist.mjs && tsc -p tsconfig.main.json && node scripts/build-apple-translate-helper.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.renderer.json && tsc --noEmit -p tsconfig.main.json",
     "test": "vitest run --config vitest.config.ts",
+    "icons": "node scripts/generate-icons.mjs",
     "rebuild:native": "electron-builder install-app-deps",
     "postinstall": "electron-builder install-app-deps",
     "start": "npm run build && npm run rebuild:native && electron .",
@@ -56,6 +57,7 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
       "target": [
         "dmg",
         "zip"

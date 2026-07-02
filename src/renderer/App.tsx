@@ -1,4 +1,4 @@
-import { BookOpen, Library, Settings } from "lucide-react";
+import { Library, Settings } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { getTranslator } from "../shared/i18n";
 import type { AppSettings, BookRecord } from "../shared/types";
@@ -59,9 +59,6 @@ export function App() {
   return (
     <main className="app-shell">
       <aside className="rail">
-        <div className="brand" aria-label="SilkRoad">
-          <BookOpen size={22} />
-        </div>
         <button
           className={view === "library" ? "rail-button active" : "rail-button"}
           title={t("nav.library")}

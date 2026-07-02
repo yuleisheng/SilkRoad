@@ -69,15 +69,6 @@ button:disabled {
   color: #f8f7f3;
 }
 
-.brand {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  margin-bottom: 10px;
-  color: var(--accent);
-}
-
 .rail-button,
 .icon-button {
   display: inline-grid;

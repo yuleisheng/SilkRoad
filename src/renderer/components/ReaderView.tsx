@@ -62,14 +62,17 @@ export function ReaderView({
   const selectionToolbarRef = useRef<HTMLDivElement | null>(null);
   const translationPopoverRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<HTMLDivElement | null>(null);
+  const isMockReader = book.readerUrl.startsWith("mock-book://");
   const renditionRef = useRef<any>(null);
   const epubRef = useRef<any>(null);
   const activeContentsRef = useRef<any>(null);
   const contentsPointerCleanupRef = useRef<(() => void) | null>(null);
+  const contentsKeyboardCleanupsRef = useRef<Map<any, () => void>>(new Map());
   const translationRequestIdRef = useRef(0);
   const systemTranslationVisibleRef = useRef(false);
   const chatStreamCleanupRef = useRef<(() => void) | null>(null);
-  const isMockReader = book.readerUrl.startsWith("mock-book://");
+  const readerStatusRef = useRef<"idle" | "loading" | "ready">("idle");
+  const isMockReaderRef = useRef(isMockReader);
   const [annotations, setAnnotations] = useState<AnnotationRecord[]>([]);
   const [selection, setSelection] = useState<ActiveSelection | null>(null);
   const [selectionUiVisible, setSelectionUiVisible] = useState(false);
@@ -87,6 +90,9 @@ export function ReaderView({
   const [readerStatus, setReaderStatus] = useState<"idle" | "loading" | "ready">(
     "idle"
   );
+
+  readerStatusRef.current = readerStatus;
+  isMockReaderRef.current = isMockReader;
 
   useEffect(() => {
     function handleDocumentPointerDown(event: PointerEvent) {
@@ -132,6 +138,13 @@ export function ReaderView({
     },
     []
   );
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleReaderKeyDown, true);
+    return () => {
+      document.removeEventListener("keydown", handleReaderKeyDown, true);
+    };
+  }, [readerStatus]);
 
   useEffect(() => {
     let disposed = false;
@@ -239,6 +252,10 @@ export function ReaderView({
         }
       });
 
+      rendition.on("rendered", (_section: unknown, contents: any) => {
+        trackContentsKeyboard(contents);
+      });
+
       rendition.on("selected", (cfiRange: string, contents: any) => {
         const contentsSelection = contents?.window?.getSelection?.();
         const selectedText = contentsSelection?.toString?.().trim() ?? "";
@@ -283,6 +300,7 @@ export function ReaderView({
     return () => {
       disposed = true;
       clearSelectionTracking();
+      clearContentsKeyboardTracking();
       renditionRef.current?.destroy?.();
       epubRef.current?.destroy?.();
       renditionRef.current = null;
@@ -513,6 +531,43 @@ export function ReaderView({
     }
   }
 
+  function goToPreviousPage() {
+    if (readerStatusRef.current !== "ready" || isMockReaderRef.current) {
+      return;
+    }
+
+    void renditionRef.current?.prev?.();
+  }
+
+  function goToNextPage() {
+    if (readerStatusRef.current !== "ready" || isMockReaderRef.current) {
+      return;
+    }
+
+    void renditionRef.current?.next?.();
+  }
+
+  function handleReaderKeyDown(event: KeyboardEvent) {
+    if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) {
+      return;
+    }
+
+    if (isKeyboardEventFromEditableUi(event)) {
+      return;
+    }
+
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      goToPreviousPage();
+      return;
+    }
+
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      goToNextPage();
+    }
+  }
+
   function openSideTab(tab: SideTab) {
     setSideTab(tab);
     dismissSelectionUi();
@@ -585,6 +640,13 @@ export function ReaderView({
     activeContentsRef.current = null;
   }
 
+  function clearContentsKeyboardTracking() {
+    for (const cleanup of contentsKeyboardCleanupsRef.current.values()) {
+      cleanup();
+    }
+    contentsKeyboardCleanupsRef.current.clear();
+  }
+
   function trackContentsPointerDismiss(contents: any) {
     contentsPointerCleanupRef.current?.();
 
@@ -602,6 +664,22 @@ export function ReaderView({
     contentsPointerCleanupRef.current = () => {
       documentElement.removeEventListener("pointerdown", handleContentsPointerDown, true);
     };
+  }
+
+  function trackContentsKeyboard(contents: any) {
+    const contentsWindow = contents?.window;
+    if (!contentsWindow?.addEventListener) {
+      return;
+    }
+
+    if (contentsKeyboardCleanupsRef.current.has(contentsWindow)) {
+      return;
+    }
+
+    contentsWindow.addEventListener("keydown", handleReaderKeyDown, true);
+    contentsKeyboardCleanupsRef.current.set(contentsWindow, () => {
+      contentsWindow.removeEventListener("keydown", handleReaderKeyDown, true);
+    });
   }
 
   function getPopoverPosition(activeSelection: ActiveSelection) {
@@ -735,7 +813,7 @@ export function ReaderView({
             <button
               className="icon-button page-button"
               title={t("reader.previousPage")}
-              onClick={() => renditionRef.current?.prev?.()}
+              onClick={goToPreviousPage}
               disabled={isMockReader || readerStatus !== "ready"}
             >
               <ChevronLeft size={18} />
@@ -743,7 +821,7 @@ export function ReaderView({
             <button
               className="icon-button page-button"
               title={t("reader.nextPage")}
-              onClick={() => renditionRef.current?.next?.()}
+              onClick={goToNextPage}
               disabled={isMockReader || readerStatus !== "ready"}
             >
               <ChevronRight size={18} />
@@ -933,6 +1011,29 @@ function formatTranslationError(reason: unknown): string {
   return message
     .replace(/^Error invoking remote method 'translation:translate':\s*/u, "")
     .replace(/^Error:\s*/u, "");
+}
+
+function isKeyboardEventFromEditableUi(event: KeyboardEvent): boolean {
+  const target = event.target;
+  if (!target || typeof (target as Element).closest !== "function") {
+    return false;
+  }
+
+  const element = target as Element;
+  const tagName = element.tagName?.toLowerCase?.();
+  if (tagName === "input" || tagName === "textarea" || tagName === "select") {
+    return true;
+  }
+
+  if ((element as HTMLElement).isContentEditable) {
+    return true;
+  }
+
+  return Boolean(
+    element.closest(
+      "button, a, [contenteditable='true'], [contenteditable=''], .reader-side, .selection-toolbar, .translation-popover"
+    )
+  );
 }
 
 function getToolbarPosition(

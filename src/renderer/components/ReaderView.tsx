@@ -450,12 +450,13 @@ export function ReaderView({
 
   async function sendChat() {
     const content = aiInput.trim();
-    if (!content) {
+    if (!content || busy) {
       return;
     }
 
     chatStreamCleanupRef.current?.();
     chatStreamCleanupRef.current = null;
+    setAiInput("");
     setBusy(true);
     setError(null);
 
@@ -497,7 +498,6 @@ export function ReaderView({
       };
       const nextMessages = [...baseMessages, userMessage];
       setMessages([...nextMessages, assistantMessage]);
-      setAiInput("");
       setSideTab("ai");
       setActiveDiscussion(discussionForMessage ?? null);
       dismissSelectionUi({ clearContext: true });
@@ -841,12 +841,7 @@ export function ReaderView({
     };
   }
 
-  const chatContextText = selection?.text ?? activeDiscussion?.selectedText ?? "";
-  const chatContextLabel = selection
-    ? t("reader.selectionChip")
-    : activeDiscussion
-      ? t("reader.aiDiscussion")
-      : t("reader.selectionChip");
+  const chatContextText = selection?.text ?? "";
 
   return (
     <section className="reader-view">
@@ -1092,7 +1087,7 @@ export function ReaderView({
                       <div className="chat-context-preview">“{chatContextText}”</div>
                       <div className="chat-context-chip">
                         <MessageSquare size={15} />
-                        <span>{chatContextLabel}</span>
+                        <span>{t("reader.selectionChip")}</span>
                         <button
                           className="ai-context-clear"
                           title={t("reader.clearSelectionContext")}
@@ -1108,7 +1103,12 @@ export function ReaderView({
                     value={aiInput}
                     onChange={(event) => setAiInput(event.target.value)}
                     onKeyDown={(event) => {
-                      if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                      if (
+                        event.key === "Enter" &&
+                        !event.shiftKey &&
+                        !event.nativeEvent.isComposing
+                      ) {
+                        event.preventDefault();
                         void sendChat();
                       }
                     }}

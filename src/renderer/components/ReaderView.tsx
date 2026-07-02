@@ -19,7 +19,8 @@ import type {
   AppSettings,
   BookRecord,
   ChatMessage,
-  ReaderContext
+  ReaderContext,
+  ScreenRect
 } from "../../shared/types";
 import { MarkdownMessage } from "./MarkdownMessage";
 
@@ -39,6 +40,7 @@ interface ActiveSelection {
     left: number;
     top: number;
   };
+  anchorRect?: ScreenRect;
 }
 
 type SideTab = "annotations" | "ai";
@@ -275,11 +277,18 @@ export function ReaderView({
         const selectedText = contentsSelection?.toString?.().trim() ?? "";
         const chapterText = contents?.document?.body?.innerText ?? "";
         const toolbarPosition = getToolbarPosition(contents, bookPaneRef.current);
+        const anchorRect = getSelectionScreenAnchorRect(contents);
 
         if (selectedText) {
           activeContentsRef.current = contents;
           trackContentsPointerDismiss(contents);
-          setSelection({ cfiRange, text: selectedText, chapterText, toolbarPosition });
+          setSelection({
+            cfiRange,
+            text: selectedText,
+            chapterText,
+            toolbarPosition,
+            anchorRect
+          });
           setSelectionPopupMode("actions");
           setNoteDraft("");
           setSelectionUiVisible(true);
@@ -356,7 +365,10 @@ export function ReaderView({
     }
 
     const popoverPosition = getPopoverPosition(selection);
-    const anchorRect = getScreenAnchorRect(selection, bookPaneRef.current);
+    const anchorRect =
+      getSelectionScreenAnchorRect(activeContentsRef.current) ??
+      selection.anchorRect ??
+      getScreenAnchorRect(selection, bookPaneRef.current);
     const translationRequestId = translationRequestIdRef.current + 1;
     translationRequestIdRef.current = translationRequestId;
     dismissSystemTranslation();
@@ -1092,7 +1104,7 @@ function getToolbarPosition(
 function getScreenAnchorRect(
   activeSelection: ActiveSelection,
   bookPane: HTMLDivElement | null
-) {
+): ScreenRect | undefined {
   const position = activeSelection.toolbarPosition;
   if (!position || !bookPane) {
     return undefined;
@@ -1104,6 +1116,27 @@ function getScreenAnchorRect(
     y: window.screenY + paneRect.top + position.top - 4,
     width: 8,
     height: 8
+  };
+}
+
+function getSelectionScreenAnchorRect(contents: any): ScreenRect | undefined {
+  const range = getSelectedRange(contents);
+  const frame = contents?.document?.defaultView?.frameElement as HTMLElement | null;
+  if (!range || !frame) {
+    return undefined;
+  }
+
+  const selectionRect = getReadableRangeRect(range);
+  if (!selectionRect) {
+    return undefined;
+  }
+
+  const frameRect = frame.getBoundingClientRect();
+  return {
+    x: window.screenX + frameRect.left + selectionRect.left,
+    y: window.screenY + frameRect.top + selectionRect.top,
+    width: Math.max(1, selectionRect.width),
+    height: Math.max(1, selectionRect.height)
   };
 }
 

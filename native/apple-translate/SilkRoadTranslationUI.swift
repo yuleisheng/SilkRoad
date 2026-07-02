@@ -64,6 +64,16 @@ struct TranslationUIHostView: View {
 
 private var appDelegateRetainer: SilkRoadTranslationUIAppDelegate?
 
+final class TranslationAnchorPanel: NSPanel {
+    override var canBecomeKey: Bool {
+        true
+    }
+
+    override var canBecomeMain: Bool {
+        false
+    }
+}
+
 @main
 struct SilkRoadTranslationUIApp {
     static func main() {
@@ -78,6 +88,7 @@ struct SilkRoadTranslationUIApp {
 final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
     private var window: NSWindow?
     private var state: AnyObject?
+    private var outsideClickMonitor: Any?
     private var suppressNextDismissedEvent = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -109,9 +120,9 @@ final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
             }
         )
 
-        let panel = NSPanel(
+        let panel = TranslationAnchorPanel(
             contentRect: NSRect(x: 0, y: 0, width: 2, height: 2),
-            styleMask: [.borderless, .nonactivatingPanel],
+            styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
@@ -123,7 +134,7 @@ final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
-        panel.ignoresMouseEvents = true
+        panel.ignoresMouseEvents = false
         window = panel
     }
 
@@ -216,17 +227,27 @@ final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
 
         state.activeRequestId = command.id
         state.text = text
+        stopOutsideClickMonitor()
         if state.isPresented {
-            suppressNextDismissedEvent = true
+            suppressNextSystemDismissedEvent()
         }
         state.isPresented = false
 
         window.setFrame(anchorFrame(from: command.anchorRect), display: true)
-        window.orderFrontRegardless()
         NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        window.contentView?.layoutSubtreeIfNeeded()
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self, weak state, weak window] in
+            guard let self,
+                  let state,
+                  state.activeRequestId == command.id
+            else {
+                return
+            }
+            window?.makeKeyAndOrderFront(nil)
             state.isPresented = true
+            self.startOutsideClickMonitor()
         }
 
         writeResponse(
@@ -248,8 +269,9 @@ final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
         }
 
         if let state = state as? TranslationUIState {
+            stopOutsideClickMonitor()
             if state.isPresented {
-                suppressNextDismissedEvent = true
+                suppressNextSystemDismissedEvent()
             }
             state.isPresented = false
             state.activeRequestId = nil
@@ -298,6 +320,8 @@ final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        stopOutsideClickMonitor()
+        state.isPresented = false
         state.activeRequestId = nil
         window?.orderOut(nil)
         writeResponse(
@@ -311,6 +335,33 @@ final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
                 error: nil
             )
         )
+    }
+
+    private func startOutsideClickMonitor() {
+        stopOutsideClickMonitor()
+        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown]
+        ) { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.sendDismissedEvent()
+            }
+        }
+    }
+
+    private func stopOutsideClickMonitor() {
+        guard let outsideClickMonitor else {
+            return
+        }
+
+        NSEvent.removeMonitor(outsideClickMonitor)
+        self.outsideClickMonitor = nil
+    }
+
+    private func suppressNextSystemDismissedEvent() {
+        suppressNextDismissedEvent = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+            self?.suppressNextDismissedEvent = false
+        }
     }
 
     private func anchorFrame(from rect: ScreenRect?) -> NSRect {

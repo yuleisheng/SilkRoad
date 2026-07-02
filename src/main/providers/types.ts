@@ -45,6 +45,10 @@ export class ProviderConfigurationError extends Error {
 }
 
 export function assertApiKey(settings: ProviderSettings): string {
+  if (settings.apiKeyError) {
+    throw new ProviderConfigurationError(settings.apiKeyError);
+  }
+
   if (!settings.apiKey?.trim()) {
     throw new ProviderConfigurationError(`${settings.label} API key is missing.`);
   }

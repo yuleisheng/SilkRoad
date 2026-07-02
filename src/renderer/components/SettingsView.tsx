@@ -171,6 +171,9 @@ export function SettingsView({
                     })
                   }
                 />
+                {selectedProvider.apiKeyError ? (
+                  <span className="field-error">{selectedProvider.apiKeyError}</span>
+                ) : null}
               </label>
             </div>
 

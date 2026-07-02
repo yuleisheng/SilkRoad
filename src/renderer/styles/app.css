@@ -419,6 +419,14 @@ textarea:focus {
   color: #9a3412;
 }
 
+.field-error {
+  display: block;
+  margin-top: 7px;
+  color: #9a3412;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .reader-view {
   display: grid;
   grid-template-rows: 78px 1fr;

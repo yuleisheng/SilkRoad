@@ -55,6 +55,7 @@ export interface ProviderSettings {
   baseUrl?: string;
   apiKey?: string;
   apiKeyStored?: boolean;
+  apiKeyError?: string;
   clearApiKey?: boolean;
 }
 

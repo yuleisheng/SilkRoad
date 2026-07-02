@@ -235,25 +235,24 @@ export class LibraryDatabase {
   }
 
   getSettings(): AppSettings {
-    const row = this.db
-      .prepare("select key, value from settings where key = 'app'")
-      .get() as SettingsRow | undefined;
-
-    const parsed = row ? (JSON.parse(row.value) as AppSettings) : DEFAULT_SETTINGS;
-    return sanitizeSettings(mergeSettings(parsed));
+    return sanitizeSettings(resolveSettingsSecrets(this.getPersistedSettings()));
   }
 
   getSettingsWithSecrets(): AppSettings {
+    return resolveSettingsSecrets(this.getPersistedSettings());
+  }
+
+  private getPersistedSettings(): AppSettings {
     const row = this.db
       .prepare("select key, value from settings where key = 'app'")
       .get() as SettingsRow | undefined;
 
     const parsed = row ? (JSON.parse(row.value) as AppSettings) : DEFAULT_SETTINGS;
-    return resolveSettingsSecrets(mergeSettings(parsed));
+    return mergeSettings(parsed);
   }
 
   saveSettings(settings: AppSettings): AppSettings {
-    const current = this.getSettingsWithSecrets();
+    const current = this.getPersistedSettings();
     const merged = mergeSettings(settings);
     const persisted: AppSettings = {
       ...merged,
@@ -272,8 +271,8 @@ export class LibraryDatabase {
       } else if (incoming.apiKey?.trim()) {
         incoming.apiKey = encryptSecret(incoming.apiKey.trim());
         incoming.apiKeyStored = true;
-      } else if (previous.apiKey) {
-        incoming.apiKey = encryptSecret(previous.apiKey);
+      } else if (incoming.apiKeyStored && previous.apiKey) {
+        incoming.apiKey = previous.apiKey;
         incoming.apiKeyStored = true;
       } else {
         delete incoming.apiKey;
@@ -281,6 +280,7 @@ export class LibraryDatabase {
       }
 
       delete incoming.clearApiKey;
+      delete incoming.apiKeyError;
     }
 
     this.db
@@ -419,6 +419,7 @@ function sanitizeProviderSettings(provider: ProviderSettings): ProviderSettings 
     baseUrl: provider.baseUrl,
     apiKey: provider.apiKey,
     apiKeyStored: provider.apiKeyStored,
+    apiKeyError: provider.apiKeyError,
     clearApiKey: provider.clearApiKey
   };
 }
@@ -452,8 +453,15 @@ function resolveSettingsSecrets(settings: AppSettings): AppSettings {
   >) {
     const provider = { ...resolved.providers[providerId] };
     if (provider.apiKey) {
-      provider.apiKey = decryptSecret(provider.apiKey);
-      provider.apiKeyStored = Boolean(provider.apiKey);
+      try {
+        provider.apiKey = decryptSecret(provider.apiKey);
+        provider.apiKeyStored = Boolean(provider.apiKey);
+        delete provider.apiKeyError;
+      } catch {
+        delete provider.apiKey;
+        provider.apiKeyStored = false;
+        provider.apiKeyError = `${provider.label} API key could not be decrypted. Re-enter it in Settings.`;
+      }
     }
     resolved.providers[providerId] = provider;
   }

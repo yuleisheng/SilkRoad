@@ -616,6 +616,20 @@ export function ReaderView({
     }
   }
 
+  async function removeAiDiscussion(discussion: AiDiscussionRecord) {
+    try {
+      await window.silkroad.aiDiscussions.remove(discussion.id);
+      removeAiDiscussionMarker(discussion);
+      setAiDiscussions((current) => current.filter((item) => item.id !== discussion.id));
+      if (activeDiscussion?.id === discussion.id) {
+        setActiveDiscussion(null);
+        setMessages([]);
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    }
+  }
+
   function paintAnnotation(annotation: AnnotationRecord) {
     const rendition = renditionRef.current;
     if (!rendition?.annotations?.highlight) {
@@ -641,32 +655,58 @@ export function ReaderView({
 
   function paintAiDiscussion(discussion: AiDiscussionRecord) {
     const rendition = renditionRef.current;
-    if (!rendition?.annotations?.highlight) {
+    if (!rendition?.annotations?.highlight && !rendition?.annotations?.underline) {
       return;
     }
 
     try {
+      const openDiscussion = (event: Event) => {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        void openAiDiscussion(discussion);
+      };
+
+      if (rendition.annotations.underline) {
+        rendition.annotations.underline(
+          discussion.cfiRange,
+          { id: discussion.id, type: "ai-discussion" },
+          openDiscussion,
+          "ai-discussion-mark",
+          {
+            stroke: "#7e78d8",
+            "stroke-opacity": "0.84",
+            "stroke-width": "2.4",
+            cursor: "pointer"
+          }
+        );
+        return;
+      }
+
       rendition.annotations.highlight(
         discussion.cfiRange,
         { id: discussion.id, type: "ai-discussion" },
-        (event: Event) => {
-          event.preventDefault?.();
-          event.stopPropagation?.();
-          void openAiDiscussion(discussion);
-        },
-        "highlight",
+        openDiscussion,
+        "ai-discussion-mark",
         {
           fill: "#7e78d8",
-          "fill-opacity": "0.2",
-          stroke: "#7e78d8",
-          "stroke-opacity": "0.6",
-          "stroke-width": "1",
+          "fill-opacity": "0.13",
           "mix-blend-mode": "multiply",
           cursor: "pointer"
         }
       );
     } catch {
       // epub.js can reject discussion markers before an iframe is fully ready.
+    }
+  }
+
+  function removeAiDiscussionMarker(discussion: AiDiscussionRecord) {
+    const annotationsApi = renditionRef.current?.annotations;
+    annotationsApi?.remove?.(discussion.cfiRange, "underline");
+    annotationsApi?.remove?.(discussion.cfiRange, "highlight");
+    for (const annotation of annotations) {
+      if (annotation.cfiRange === discussion.cfiRange) {
+        paintAnnotation(annotation);
+      }
     }
   }
 
@@ -1035,16 +1075,29 @@ export function ReaderView({
             {sideTab === "ai" ? (
               <div className="side-section ai-panel">
                 {activeDiscussion ? (
-                  <button
-                    className="discussion-context-card"
-                    onClick={() => renditionRef.current?.display?.(activeDiscussion.cfiRange)}
-                  >
-                    <span>
-                      <MessageSquare size={14} />
-                      {t("reader.aiDiscussion")}
-                    </span>
-                    <strong>“{activeDiscussion.selectedText}”</strong>
-                  </button>
+                  <article className="discussion-context-card">
+                    <div className="discussion-context-header">
+                      <span>
+                        <MessageSquare size={14} />
+                        {t("reader.aiDiscussion")}
+                      </span>
+                      <button
+                        className="discussion-remove-button"
+                        title={t("reader.removeAiDiscussion")}
+                        aria-label={t("reader.removeAiDiscussion")}
+                        disabled={busy}
+                        onClick={() => void removeAiDiscussion(activeDiscussion)}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                    <button
+                      className="discussion-context-quote"
+                      onClick={() => renditionRef.current?.display?.(activeDiscussion.cfiRange)}
+                    >
+                      “{activeDiscussion.selectedText}”
+                    </button>
+                  </article>
                 ) : null}
 
                 <div className="message-list">

@@ -125,6 +125,10 @@ export function registerIpcHandlers(
     }
   );
 
+  ipcMain.handle("aiDiscussions:remove", (_event, discussionId: string) => {
+    database.removeAiDiscussion(discussionId);
+  });
+
   ipcMain.handle("settings:get", () => database.getSettings());
 
   ipcMain.handle("settings:update", (_event, settings: AppSettings) =>

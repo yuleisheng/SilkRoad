@@ -53,6 +53,7 @@ const zhCN = {
   "reader.clearSelectionContext": "移除选区上下文",
   "reader.selectionChip": "1 selection",
   "reader.aiDiscussion": "AI 讨论",
+  "reader.removeAiDiscussion": "删除 AI 讨论",
   "reader.send": "发送",
   "reader.failedOpenEpub": "Failed to open EPUB",
   "reader.failedLoadEpub": "Failed to load EPUB resource"
@@ -112,6 +113,7 @@ const TRANSLATIONS: Record<AppLanguage, Record<I18nKey, string>> = {
     "reader.clearSelectionContext": "Remove selection context",
     "reader.selectionChip": "1 selection",
     "reader.aiDiscussion": "AI discussion",
+    "reader.removeAiDiscussion": "Delete AI discussion",
     "reader.send": "Send",
     "reader.failedOpenEpub": "Failed to open EPUB",
     "reader.failedLoadEpub": "Failed to load EPUB resource"
@@ -162,6 +164,7 @@ const TRANSLATIONS: Record<AppLanguage, Record<I18nKey, string>> = {
     "reader.clearSelectionContext": "Quitar contexto de selección",
     "reader.selectionChip": "1 selección",
     "reader.aiDiscussion": "Discusión IA",
+    "reader.removeAiDiscussion": "Eliminar discusión IA",
     "reader.send": "Enviar",
     "reader.failedOpenEpub": "No se pudo abrir el EPUB",
     "reader.failedLoadEpub": "No se pudo cargar el recurso del EPUB"
@@ -212,6 +215,7 @@ const TRANSLATIONS: Record<AppLanguage, Record<I18nKey, string>> = {
     "reader.clearSelectionContext": "Retirer le contexte de sélection",
     "reader.selectionChip": "1 sélection",
     "reader.aiDiscussion": "Discussion IA",
+    "reader.removeAiDiscussion": "Supprimer la discussion IA",
     "reader.send": "Envoyer",
     "reader.failedOpenEpub": "Impossible d’ouvrir l’EPUB",
     "reader.failedLoadEpub": "Impossible de charger la ressource EPUB"
@@ -262,6 +266,7 @@ const TRANSLATIONS: Record<AppLanguage, Record<I18nKey, string>> = {
     "reader.clearSelectionContext": "選択コンテキストを削除",
     "reader.selectionChip": "1 件の選択",
     "reader.aiDiscussion": "AI ディスカッション",
+    "reader.removeAiDiscussion": "AI ディスカッションを削除",
     "reader.send": "送信",
     "reader.failedOpenEpub": "EPUB を開けませんでした",
     "reader.failedLoadEpub": "EPUB リソースを読み込めませんでした"

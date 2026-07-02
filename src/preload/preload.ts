@@ -41,7 +41,9 @@ const api: SilkRoadAPI = {
     messages: (discussionId: string) =>
       ipcRenderer.invoke("aiDiscussions:messages", discussionId),
     addMessage: (discussionId: string, message: ChatMessage) =>
-      ipcRenderer.invoke("aiDiscussions:addMessage", discussionId, message)
+      ipcRenderer.invoke("aiDiscussions:addMessage", discussionId, message),
+    remove: (discussionId: string) =>
+      ipcRenderer.invoke("aiDiscussions:remove", discussionId)
   },
   settings: {
     get: () => ipcRenderer.invoke("settings:get"),

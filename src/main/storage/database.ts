@@ -309,6 +309,14 @@ export class LibraryDatabase {
       .run(new Date().toISOString(), discussionId);
   }
 
+  removeAiDiscussion(discussionId: string): void {
+    const remove = this.db.transaction((id: string) => {
+      this.db.prepare("delete from messages where conversationId = ?").run(id);
+      this.db.prepare("delete from conversations where id = ?").run(id);
+    });
+    remove(discussionId);
+  }
+
   getSettings(): AppSettings {
     return sanitizeSettings(resolveSettingsSecrets(this.getPersistedSettings()));
   }

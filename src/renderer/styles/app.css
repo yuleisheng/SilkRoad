@@ -805,24 +805,33 @@ textarea:focus {
 }
 
 .discussion-context-card {
-  display: grid;
-  gap: 7px;
+  display: block;
   width: 100%;
   flex: 0 0 auto;
-  padding: 10px 12px;
-  border: 1px solid rgba(126, 120, 216, 0.22);
+  padding: 10px 11px 11px;
+  border: 1px solid rgba(222, 219, 211, 0.78);
+  border-left: 3px solid rgba(126, 120, 216, 0.72);
   border-radius: 8px;
-  text-align: left;
   color: var(--text);
-  background: rgba(240, 239, 255, 0.58);
+  background: rgba(255, 253, 249, 0.82);
+  box-shadow: 0 8px 20px rgba(29, 27, 46, 0.06);
 }
 
 .discussion-context-card:hover {
-  border-color: rgba(126, 120, 216, 0.42);
-  background: rgba(240, 239, 255, 0.82);
+  border-color: rgba(202, 198, 188, 0.9);
+  border-left-color: var(--accent-strong);
+  background: rgba(255, 253, 249, 0.98);
 }
 
-.discussion-context-card span {
+.discussion-context-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.discussion-context-header span {
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -831,10 +840,34 @@ textarea:focus {
   font-weight: 800;
 }
 
-.discussion-context-card strong {
+.discussion-remove-button {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  color: rgba(37, 35, 55, 0.45);
+  background: transparent;
+}
+
+.discussion-remove-button:hover {
+  color: #9a3412;
+  background: #fee2e2;
+}
+
+.discussion-remove-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.discussion-context-quote {
   overflow: hidden;
   display: -webkit-box;
+  width: 100%;
+  padding: 0;
+  text-align: left;
   color: rgba(37, 35, 55, 0.78);
+  background: transparent;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.36;

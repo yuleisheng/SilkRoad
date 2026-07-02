@@ -173,6 +173,11 @@ function createMockApi(): SilkRoadAPI {
           ...aiDiscussionMessages,
           [discussionId]: [...(aiDiscussionMessages[discussionId] ?? []), message]
         };
+      },
+      remove: async (discussionId) => {
+        aiDiscussions = aiDiscussions.filter((item) => item.id !== discussionId);
+        const { [discussionId]: _removed, ...remaining } = aiDiscussionMessages;
+        aiDiscussionMessages = remaining;
       }
     },
     settings: {

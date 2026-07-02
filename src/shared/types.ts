@@ -199,6 +199,7 @@ export interface SilkRoadAPI {
     create(input: AiDiscussionInput): Promise<AiDiscussionRecord>;
     messages(discussionId: string): Promise<ChatMessage[]>;
     addMessage(discussionId: string, message: ChatMessage): Promise<void>;
+    remove(discussionId: string): Promise<void>;
   };
   settings: {
     get(): Promise<AppSettings>;

@@ -1,10 +1,13 @@
 import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 import type {
+  AiDiscussionInput,
+  AiDiscussionRecord,
   AnnotationInput,
   AnnotationRecord,
   AppSettings,
   BookRecord,
+  ChatMessage,
   ExportedAnnotations,
   ProviderSettings,
   ReadingLocation
@@ -18,6 +21,7 @@ type BookRow = Omit<BookRecord, "readerUrl" | "coverImageUrl"> & {
   coverPath?: string | null;
 };
 type SettingsRow = { key: string; value: string };
+type MessageRow = Pick<ChatMessage, "id" | "role" | "content" | "createdAt">;
 
 export interface ResolvedProviderSettings extends ProviderSettings {
   apiKey?: string;
@@ -234,6 +238,77 @@ export class LibraryDatabase {
     return create(annotations);
   }
 
+  listAiDiscussions(bookId: string): AiDiscussionRecord[] {
+    return this.db
+      .prepare(
+        `select id, bookId, cfiRange, selectedText, title, createdAt, updatedAt
+         from conversations
+         where bookId = ?
+           and cfiRange is not null
+           and selectedText is not null
+         order by updatedAt desc`
+      )
+      .all(bookId) as AiDiscussionRecord[];
+  }
+
+  createAiDiscussion(input: AiDiscussionInput): AiDiscussionRecord {
+    const now = new Date().toISOString();
+    const discussion: AiDiscussionRecord = {
+      id: randomUUID(),
+      bookId: input.bookId,
+      cfiRange: input.cfiRange,
+      selectedText: input.selectedText,
+      title: input.title || createDiscussionTitle(input.selectedText),
+      createdAt: now,
+      updatedAt: now
+    };
+
+    this.db
+      .prepare(
+        `insert into conversations
+         (id, bookId, title, cfiRange, selectedText, createdAt, updatedAt)
+         values (@id, @bookId, @title, @cfiRange, @selectedText, @createdAt, @updatedAt)`
+      )
+      .run(discussion);
+
+    return discussion;
+  }
+
+  listAiDiscussionMessages(discussionId: string): ChatMessage[] {
+    const rows = this.db
+      .prepare(
+        `select id, role, content, createdAt
+         from messages
+         where conversationId = ?
+         order by createdAt asc`
+      )
+      .all(discussionId) as MessageRow[];
+
+    return rows.map((row) => ({
+      ...row,
+      status: "complete" as const
+    }));
+  }
+
+  addAiDiscussionMessage(discussionId: string, message: ChatMessage): void {
+    this.db
+      .prepare(
+        `insert into messages (id, conversationId, role, content, createdAt)
+         values (@id, @conversationId, @role, @content, @createdAt)`
+      )
+      .run({
+        id: message.id,
+        conversationId: discussionId,
+        role: message.role,
+        content: message.content,
+        createdAt: message.createdAt
+      });
+
+    this.db
+      .prepare("update conversations set updatedAt = ? where id = ?")
+      .run(new Date().toISOString(), discussionId);
+  }
+
   getSettings(): AppSettings {
     return sanitizeSettings(resolveSettingsSecrets(this.getPersistedSettings()));
   }
@@ -336,6 +411,8 @@ export class LibraryDatabase {
         id text primary key,
         bookId text,
         title text,
+        cfiRange text,
+        selectedText text,
         createdAt text not null,
         updatedAt text not null
       );
@@ -351,6 +428,8 @@ export class LibraryDatabase {
     `);
 
     this.addColumnIfMissing("books", "coverPath", "text");
+    this.addColumnIfMissing("conversations", "cfiRange", "text");
+    this.addColumnIfMissing("conversations", "selectedText", "text");
   }
 
   private addColumnIfMissing(tableName: string, columnName: string, columnType: string): void {
@@ -422,6 +501,10 @@ function sanitizeProviderSettings(provider: ProviderSettings): ProviderSettings 
     apiKeyError: provider.apiKeyError,
     clearApiKey: provider.clearApiKey
   };
+}
+
+function createDiscussionTitle(selectedText: string): string {
+  return selectedText.trim().replace(/\s+/gu, " ").slice(0, 80);
 }
 
 function sanitizeSettings(settings: AppSettings): AppSettings {

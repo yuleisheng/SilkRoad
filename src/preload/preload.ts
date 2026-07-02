@@ -1,7 +1,9 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import type {
+  AiDiscussionInput,
   AnnotationInput,
   AppSettings,
+  ChatMessage,
   ChatRequest,
   ChatStreamEvent,
   ChatStreamHandlers,
@@ -31,6 +33,15 @@ const api: SilkRoadAPI = {
     export: (bookId) => ipcRenderer.invoke("annotations:export", bookId),
     import: (payload: ImportAnnotationsPayload) =>
       ipcRenderer.invoke("annotations:import", payload)
+  },
+  aiDiscussions: {
+    list: (bookId: string) => ipcRenderer.invoke("aiDiscussions:list", bookId),
+    create: (input: AiDiscussionInput) =>
+      ipcRenderer.invoke("aiDiscussions:create", input),
+    messages: (discussionId: string) =>
+      ipcRenderer.invoke("aiDiscussions:messages", discussionId),
+    addMessage: (discussionId: string, message: ChatMessage) =>
+      ipcRenderer.invoke("aiDiscussions:addMessage", discussionId, message)
   },
   settings: {
     get: () => ipcRenderer.invoke("settings:get"),

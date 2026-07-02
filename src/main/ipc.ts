@@ -3,8 +3,10 @@ import { copyFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type {
+  AiDiscussionInput,
   AnnotationInput,
   AppSettings,
+  ChatMessage,
   ChatRequest,
   ChatStreamEvent,
   ImportAnnotationsPayload,
@@ -102,6 +104,25 @@ export function registerIpcHandlers(
     "annotations:import",
     (_event, payload: ImportAnnotationsPayload) =>
       database.importAnnotations(payload.bookId, payload.annotations)
+  );
+
+  ipcMain.handle("aiDiscussions:list", (_event, bookId: string) =>
+    database.listAiDiscussions(bookId)
+  );
+
+  ipcMain.handle("aiDiscussions:create", (_event, input: AiDiscussionInput) =>
+    database.createAiDiscussion(input)
+  );
+
+  ipcMain.handle("aiDiscussions:messages", (_event, discussionId: string) =>
+    database.listAiDiscussionMessages(discussionId)
+  );
+
+  ipcMain.handle(
+    "aiDiscussions:addMessage",
+    (_event, discussionId: string, message: ChatMessage) => {
+      database.addAiDiscussionMessage(discussionId, message);
+    }
   );
 
   ipcMain.handle("settings:get", () => database.getSettings());

@@ -15,6 +15,7 @@ import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { TranslateFunction } from "../../shared/i18n";
 import type {
+  AiDiscussionRecord,
   AnnotationRecord,
   AppSettings,
   BookRecord,
@@ -76,6 +77,9 @@ export function ReaderView({
   const readerStatusRef = useRef<"idle" | "loading" | "ready">("idle");
   const isMockReaderRef = useRef(isMockReader);
   const [annotations, setAnnotations] = useState<AnnotationRecord[]>([]);
+  const [aiDiscussions, setAiDiscussions] = useState<AiDiscussionRecord[]>([]);
+  const [activeDiscussion, setActiveDiscussion] =
+    useState<AiDiscussionRecord | null>(null);
   const [selection, setSelection] = useState<ActiveSelection | null>(null);
   const [selectionUiVisible, setSelectionUiVisible] = useState(false);
   const [selectionPopupMode, setSelectionPopupMode] =
@@ -169,13 +173,17 @@ export function ReaderView({
       if (isMockReader) {
         dismissSelectionUi({ clearContext: true });
         setReaderStatus("loading");
-        const storedAnnotations = await window.silkroad.annotations.list(book.id);
+        const [storedAnnotations, storedDiscussions] = await Promise.all([
+          window.silkroad.annotations.list(book.id),
+          window.silkroad.aiDiscussions.list(book.id)
+        ]);
         const initialTab = getInitialSideTab();
         if (disposed) {
           return;
         }
 
         setAnnotations(storedAnnotations);
+        setAiDiscussions(storedDiscussions);
         setCurrentChapterText(DEMO_CHAPTER_TEXT);
         setSelection({
           cfiRange: "mock-cfi-selection",
@@ -218,9 +226,13 @@ export function ReaderView({
       setCurrentChapterText("");
       viewerRef.current.innerHTML = "";
 
-      const [location, storedAnnotations] = await Promise.all([
+      setActiveDiscussion(null);
+      setMessages([]);
+
+      const [location, storedAnnotations, storedDiscussions] = await Promise.all([
         window.silkroad.reading.getLocation(book.id),
         window.silkroad.annotations.list(book.id),
+        window.silkroad.aiDiscussions.list(book.id),
         window.silkroad.books.markOpened(book.id)
       ]);
       if (disposed) {
@@ -228,6 +240,7 @@ export function ReaderView({
       }
 
       setAnnotations(storedAnnotations);
+      setAiDiscussions(storedDiscussions);
       const epubBook = ePub(book.readerUrl, {
         openAs: "epub"
       });
@@ -291,6 +304,7 @@ export function ReaderView({
           });
           setSelectionPopupMode("actions");
           setNoteDraft("");
+          setActiveDiscussion(null);
           setSelectionUiVisible(true);
           setCurrentChapterText(chapterText);
         }
@@ -301,6 +315,10 @@ export function ReaderView({
 
       for (const annotation of storedAnnotations) {
         paintAnnotation(annotation);
+      }
+
+      for (const discussion of storedDiscussions) {
+        paintAiDiscussion(discussion);
       }
 
       const metadata = await epubBook.loaded.metadata;
@@ -438,39 +456,59 @@ export function ReaderView({
 
     chatStreamCleanupRef.current?.();
     chatStreamCleanupRef.current = null;
-
-    const createdAt = new Date().toISOString();
-    const readerContext = getReaderContext();
-    const selectedText = selection?.text.trim();
-    const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content,
-      createdAt,
-      selectionContext: selectedText
-        ? {
-            selectedText,
-            bookTitle: book.title
-          }
-        : undefined
-    };
-    const assistantId = crypto.randomUUID();
-    const assistantMessage: ChatMessage = {
-      id: assistantId,
-      role: "assistant",
-      content: "",
-      createdAt: new Date().toISOString(),
-      status: "streaming"
-    };
-    const nextMessages = [...messages, userMessage];
-    setMessages([...nextMessages, assistantMessage]);
-    setAiInput("");
     setBusy(true);
     setError(null);
-    setSideTab("ai");
-    dismissSelectionUi({ clearContext: true });
 
     try {
+      const createdAt = new Date().toISOString();
+      const readerContext = getReaderContext();
+      const selectionText = selection?.text.trim();
+      const contextText = selectionText || activeDiscussion?.selectedText.trim();
+      let discussionForMessage = activeDiscussion;
+      let baseMessages = messages;
+
+      if (selectionText && selection) {
+        discussionForMessage =
+          activeDiscussion?.cfiRange === selection.cfiRange
+            ? activeDiscussion
+            : await createAiDiscussionForSelection(selection);
+        baseMessages = activeDiscussion?.cfiRange === selection.cfiRange ? messages : [];
+      }
+
+      const userMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "user",
+        content,
+        createdAt,
+        selectionContext: contextText
+          ? {
+              selectedText: contextText,
+              bookTitle: book.title
+            }
+          : undefined
+      };
+      const assistantId = crypto.randomUUID();
+      const assistantMessage: ChatMessage = {
+        id: assistantId,
+        role: "assistant",
+        content: "",
+        createdAt: new Date().toISOString(),
+        status: "streaming"
+      };
+      const nextMessages = [...baseMessages, userMessage];
+      setMessages([...nextMessages, assistantMessage]);
+      setAiInput("");
+      setSideTab("ai");
+      setActiveDiscussion(discussionForMessage ?? null);
+      dismissSelectionUi({ clearContext: true });
+
+      if (discussionForMessage) {
+        await window.silkroad.aiDiscussions.addMessage(discussionForMessage.id, {
+          ...userMessage,
+          status: "complete"
+        });
+      }
+
       let streamedContent = "";
       chatStreamCleanupRef.current = window.silkroad.ai.streamChat(
         {
@@ -491,18 +529,25 @@ export function ReaderView({
           },
           onDone: (response) => {
             chatStreamCleanupRef.current = null;
+            const completedAssistantMessage: ChatMessage = {
+              ...response.message,
+              id: assistantId,
+              content: response.message.content || streamedContent,
+              status: "complete"
+            };
             setMessages((current) =>
               current.map((message) =>
                 message.id === assistantId
-                  ? {
-                      ...response.message,
-                      id: assistantId,
-                      content: response.message.content || streamedContent,
-                      status: "complete"
-                    }
+                  ? completedAssistantMessage
                   : message
               )
             );
+            if (discussionForMessage) {
+              void window.silkroad.aiDiscussions.addMessage(
+                discussionForMessage.id,
+                completedAssistantMessage
+              );
+            }
             setBusy(false);
           },
           onError: (message) => {
@@ -532,9 +577,42 @@ export function ReaderView({
   function getReaderContext(): ReaderContext {
     return {
       bookTitle: book.title,
-      selectedText: selection?.text ?? "",
+      selectedText: selection?.text ?? activeDiscussion?.selectedText ?? "",
       currentChapterText: selection?.chapterText || currentChapterText
     };
+  }
+
+  async function createAiDiscussionForSelection(
+    activeSelection: ActiveSelection
+  ): Promise<AiDiscussionRecord> {
+    const discussion = await window.silkroad.aiDiscussions.create({
+      bookId: book.id,
+      cfiRange: activeSelection.cfiRange,
+      selectedText: activeSelection.text
+    });
+
+    setAiDiscussions((current) => [
+      discussion,
+      ...current.filter((item) => item.id !== discussion.id)
+    ]);
+    setActiveDiscussion(discussion);
+    paintAiDiscussion(discussion);
+    return discussion;
+  }
+
+  async function openAiDiscussion(discussion: AiDiscussionRecord) {
+    try {
+      dismissSelectionUi({ clearContext: true });
+      setSideTab("ai");
+      setActiveDiscussion(discussion);
+      setError(null);
+      const discussionMessages = await window.silkroad.aiDiscussions.messages(
+        discussion.id
+      );
+      setMessages(discussionMessages);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    }
   }
 
   function paintAnnotation(annotation: AnnotationRecord) {
@@ -557,6 +635,37 @@ export function ReaderView({
       );
     } catch {
       // epub.js can reject highlights before an iframe is fully ready.
+    }
+  }
+
+  function paintAiDiscussion(discussion: AiDiscussionRecord) {
+    const rendition = renditionRef.current;
+    if (!rendition?.annotations?.highlight) {
+      return;
+    }
+
+    try {
+      rendition.annotations.highlight(
+        discussion.cfiRange,
+        { id: discussion.id, type: "ai-discussion" },
+        (event: Event) => {
+          event.preventDefault?.();
+          event.stopPropagation?.();
+          void openAiDiscussion(discussion);
+        },
+        "highlight",
+        {
+          fill: "#7e78d8",
+          "fill-opacity": "0.2",
+          stroke: "#7e78d8",
+          "stroke-opacity": "0.6",
+          "stroke-width": "1",
+          "mix-blend-mode": "multiply",
+          cursor: "pointer"
+        }
+      );
+    } catch {
+      // epub.js can reject discussion markers before an iframe is fully ready.
     }
   }
 
@@ -610,6 +719,12 @@ export function ReaderView({
   function closeInlineNoteComposer() {
     setNoteDraft("");
     setSelectionPopupMode("actions");
+  }
+
+  function clearChatContext() {
+    dismissSelectionUi({ clearContext: true });
+    setActiveDiscussion(null);
+    setMessages([]);
   }
 
   function handleNoteDraftKeyDown(
@@ -725,6 +840,13 @@ export function ReaderView({
       top: Math.max(132, position.top)
     };
   }
+
+  const chatContextText = selection?.text ?? activeDiscussion?.selectedText ?? "";
+  const chatContextLabel = selection
+    ? t("reader.selectionChip")
+    : activeDiscussion
+      ? t("reader.aiDiscussion")
+      : t("reader.selectionChip");
 
   return (
     <section className="reader-view">
@@ -916,6 +1038,19 @@ export function ReaderView({
 
             {sideTab === "ai" ? (
               <div className="side-section ai-panel">
+                {activeDiscussion ? (
+                  <button
+                    className="discussion-context-card"
+                    onClick={() => renditionRef.current?.display?.(activeDiscussion.cfiRange)}
+                  >
+                    <span>
+                      <MessageSquare size={14} />
+                      {t("reader.aiDiscussion")}
+                    </span>
+                    <strong>“{activeDiscussion.selectedText}”</strong>
+                  </button>
+                ) : null}
+
                 <div className="message-list">
                   {messages.map((message) => (
                     <article key={message.id} className={`message-row ${message.role}`}>
@@ -951,18 +1086,18 @@ export function ReaderView({
                   ))}
                 </div>
 
-                <div className={selection ? "chat-input has-context" : "chat-input"}>
-                  {selection ? (
+                <div className={chatContextText ? "chat-input has-context" : "chat-input"}>
+                  {chatContextText ? (
                     <div className="chat-context">
-                      <div className="chat-context-preview">“{selection.text}”</div>
+                      <div className="chat-context-preview">“{chatContextText}”</div>
                       <div className="chat-context-chip">
                         <MessageSquare size={15} />
-                        <span>{t("reader.selectionChip")}</span>
+                        <span>{chatContextLabel}</span>
                         <button
                           className="ai-context-clear"
                           title={t("reader.clearSelectionContext")}
                           aria-label={t("reader.clearSelectionContext")}
-                          onClick={() => dismissSelectionUi({ clearContext: true })}
+                          onClick={clearChatContext}
                         >
                           <X size={15} />
                         </button>

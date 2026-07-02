@@ -48,6 +48,23 @@ export interface AnnotationInput {
   noteText?: string;
 }
 
+export interface AiDiscussionRecord {
+  id: string;
+  bookId: string;
+  cfiRange: string;
+  selectedText: string;
+  title?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AiDiscussionInput {
+  bookId: string;
+  cfiRange: string;
+  selectedText: string;
+  title?: string;
+}
+
 export interface ProviderSettings {
   id: ProviderKind;
   label: string;
@@ -176,6 +193,12 @@ export interface SilkRoadAPI {
     remove(annotationId: string): Promise<void>;
     export(bookId: string): Promise<ExportedAnnotations>;
     import(payload: ImportAnnotationsPayload): Promise<AnnotationRecord[]>;
+  };
+  aiDiscussions: {
+    list(bookId: string): Promise<AiDiscussionRecord[]>;
+    create(input: AiDiscussionInput): Promise<AiDiscussionRecord>;
+    messages(discussionId: string): Promise<ChatMessage[]>;
+    addMessage(discussionId: string, message: ChatMessage): Promise<void>;
   };
   settings: {
     get(): Promise<AppSettings>;

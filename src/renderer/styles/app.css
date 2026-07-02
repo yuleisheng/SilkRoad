@@ -804,6 +804,44 @@ textarea:focus {
   overflow: hidden;
 }
 
+.discussion-context-card {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  border: 1px solid rgba(126, 120, 216, 0.22);
+  border-radius: 8px;
+  text-align: left;
+  color: var(--text);
+  background: rgba(240, 239, 255, 0.58);
+}
+
+.discussion-context-card:hover {
+  border-color: rgba(126, 120, 216, 0.42);
+  background: rgba(240, 239, 255, 0.82);
+}
+
+.discussion-context-card span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.discussion-context-card strong {
+  overflow: hidden;
+  display: -webkit-box;
+  color: rgba(37, 35, 55, 0.78);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.36;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
 .message-list {
   display: flex;
   flex: 1;

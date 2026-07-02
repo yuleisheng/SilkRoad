@@ -1,6 +1,7 @@
 import { DEFAULT_SETTINGS } from "../shared/default-settings";
 import { shouldUseWebSearch } from "../shared/search-intent";
 import type {
+  AiDiscussionRecord,
   AnnotationInput,
   AnnotationRecord,
   AppSettings,
@@ -77,6 +78,9 @@ let annotations: AnnotationRecord[] = [
   }
 ];
 
+let aiDiscussions: AiDiscussionRecord[] = [];
+let aiDiscussionMessages: Record<string, ChatMessage[]> = {};
+
 export function installMockApiIfNeeded(): void {
   if (window.silkroad) {
     return;
@@ -147,6 +151,28 @@ function createMockApi(): SilkRoadAPI {
         }));
         annotations = [...annotations, ...imported];
         return imported;
+      }
+    },
+    aiDiscussions: {
+      list: async (bookId) => aiDiscussions.filter((item) => item.bookId === bookId),
+      create: async (input) => {
+        const discussion: AiDiscussionRecord = {
+          id: crypto.randomUUID(),
+          title: input.title ?? input.selectedText.slice(0, 80),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          ...input
+        };
+        aiDiscussions = [discussion, ...aiDiscussions];
+        aiDiscussionMessages[discussion.id] = [];
+        return discussion;
+      },
+      messages: async (discussionId) => aiDiscussionMessages[discussionId] ?? [],
+      addMessage: async (discussionId, message) => {
+        aiDiscussionMessages = {
+          ...aiDiscussionMessages,
+          [discussionId]: [...(aiDiscussionMessages[discussionId] ?? []), message]
+        };
       }
     },
     settings: {

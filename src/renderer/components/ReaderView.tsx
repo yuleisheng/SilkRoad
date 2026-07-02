@@ -113,8 +113,10 @@ export function ReaderView({
         return;
       }
 
+      const translationVisible =
+        Boolean(translationPopover) || systemTranslationVisibleRef.current;
       dismissSelectionUi({
-        clearContext: !target.closest(".reader-side")
+        clearContext: translationVisible || !target.closest(".reader-side")
       });
     }
 
@@ -130,6 +132,18 @@ export function ReaderView({
     },
     []
   );
+
+  useEffect(() => {
+    const unsubscribe = window.silkroad.translation?.onDismissed?.(() => {
+      systemTranslationVisibleRef.current = false;
+      setTranslationPopover(null);
+      dismissSelectionUi({ clearContext: true, cancelTranslation: false });
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, []);
 
   useEffect(
     () => () => {
@@ -348,7 +362,10 @@ export function ReaderView({
     dismissSystemTranslation();
     setBusy(true);
     setError(null);
-    dismissSelectionUi({ cancelTranslation: false });
+    dismissSelectionUi({
+      cancelTranslation: false,
+      preserveNativeSelection: true
+    });
     setTranslationPopover({
       status: "loading",
       position: popoverPosition
@@ -602,9 +619,12 @@ export function ReaderView({
 
   function dismissSelectionUi({
     clearContext = false,
-    cancelTranslation = true
+    cancelTranslation = true,
+    preserveNativeSelection = false
   } = {}) {
-    clearNativeSelection();
+    if (!preserveNativeSelection) {
+      clearNativeSelection();
+    }
     setSelectionUiVisible(false);
     setSelectionPopupMode("actions");
     if (cancelTranslation) {
@@ -729,6 +749,11 @@ export function ReaderView({
                           ? Math.max(selection.toolbarPosition.top, 220)
                           : selection.toolbarPosition.top
                     }
+                  : undefined
+              }
+              onMouseDown={
+                selectionPopupMode === "actions"
+                  ? (event) => event.preventDefault()
                   : undefined
               }
             >

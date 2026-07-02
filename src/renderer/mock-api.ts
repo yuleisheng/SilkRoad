@@ -256,7 +256,8 @@ function createMockApi(): SilkRoadAPI {
         providerId: "apple-system",
         text: "这段文字会在这里显示成系统翻译结果。"
       }),
-      dismiss: async () => {}
+      dismiss: async () => {},
+      onDismissed: () => () => {}
     }
   };
 }

@@ -21,6 +21,7 @@ struct TranslationUIResponse: Encodable {
     let id: String
     let ok: Bool
     let providerId: String
+    let event: String?
     let presentation: String?
     let replacement: String?
     let error: String?
@@ -37,12 +38,22 @@ final class TranslationUIState: ObservableObject {
 struct TranslationUIHostView: View {
     @ObservedObject var state: TranslationUIState
     let onReplacement: (String) -> Void
+    let onDismissed: () -> Void
 
     var body: some View {
         Color.clear
             .frame(width: 2, height: 2)
             .translationPresentation(
-                isPresented: $state.isPresented,
+                isPresented: Binding(
+                    get: { state.isPresented },
+                    set: { newValue in
+                        let wasPresented = state.isPresented
+                        state.isPresented = newValue
+                        if wasPresented && !newValue {
+                            onDismissed()
+                        }
+                    }
+                ),
                 text: state.text,
                 attachmentAnchor: .point(.center),
                 arrowEdge: .bottom,
@@ -67,6 +78,7 @@ struct SilkRoadTranslationUIApp {
 final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
     private var window: NSWindow?
     private var state: AnyObject?
+    private var suppressNextDismissedEvent = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -85,6 +97,15 @@ final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
         let hostingController = NSHostingController(
             rootView: TranslationUIHostView(state: state) { [weak self] replacement in
                 self?.sendReplacement(replacement)
+            } onDismissed: { [weak self] in
+                guard let self else {
+                    return
+                }
+                if self.suppressNextDismissedEvent {
+                    self.suppressNextDismissedEvent = false
+                    return
+                }
+                self.sendDismissedEvent()
             }
         )
 
@@ -125,6 +146,7 @@ final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
                             id: "unknown",
                             ok: false,
                             providerId: "apple-system",
+                            event: nil,
                             presentation: nil,
                             replacement: nil,
                             error: error.localizedDescription
@@ -151,6 +173,7 @@ final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
                     id: command.id,
                     ok: false,
                     providerId: "apple-system",
+                    event: nil,
                     presentation: nil,
                     replacement: nil,
                     error: "Apple Translation UI requires macOS 26 or later."
@@ -165,6 +188,7 @@ final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
                     id: command.id,
                     ok: false,
                     providerId: "apple-system",
+                    event: nil,
                     presentation: nil,
                     replacement: nil,
                     error: "Apple Translation UI helper is not ready."
@@ -181,6 +205,7 @@ final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
                     id: command.id,
                     ok: false,
                     providerId: "apple-system",
+                    event: nil,
                     presentation: nil,
                     replacement: nil,
                     error: "Apple Translation needs text to translate."
@@ -191,6 +216,9 @@ final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
 
         state.activeRequestId = command.id
         state.text = text
+        if state.isPresented {
+            suppressNextDismissedEvent = true
+        }
         state.isPresented = false
 
         window.setFrame(anchorFrame(from: command.anchorRect), display: true)
@@ -206,6 +234,7 @@ final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
                 id: command.id,
                 ok: true,
                 providerId: "apple-system",
+                event: nil,
                 presentation: "system-ui",
                 replacement: nil,
                 error: nil
@@ -219,6 +248,9 @@ final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
         }
 
         if let state = state as? TranslationUIState {
+            if state.isPresented {
+                suppressNextDismissedEvent = true
+            }
             state.isPresented = false
             state.activeRequestId = nil
         }
@@ -229,6 +261,7 @@ final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
                 id: requestId,
                 ok: true,
                 providerId: "apple-system",
+                event: nil,
                 presentation: "system-ui",
                 replacement: nil,
                 error: nil
@@ -249,8 +282,32 @@ final class SilkRoadTranslationUIAppDelegate: NSObject, NSApplicationDelegate {
                 id: requestId,
                 ok: true,
                 providerId: "apple-system",
+                event: nil,
                 presentation: "system-ui",
                 replacement: replacement,
+                error: nil
+            )
+        )
+    }
+
+    private func sendDismissedEvent() {
+        guard #available(macOS 26.0, *),
+              let state = state as? TranslationUIState,
+              let requestId = state.activeRequestId
+        else {
+            return
+        }
+
+        state.activeRequestId = nil
+        window?.orderOut(nil)
+        writeResponse(
+            TranslationUIResponse(
+                id: requestId,
+                ok: true,
+                providerId: "apple-system",
+                event: "dismissed",
+                presentation: "system-ui",
+                replacement: nil,
                 error: nil
             )
         )

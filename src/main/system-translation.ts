@@ -16,6 +16,7 @@ interface HelperResponse {
   id: string;
   ok: boolean;
   providerId?: string;
+  event?: "dismissed";
   presentation?: "system-ui";
   replacement?: string;
   error?: string;
@@ -24,6 +25,7 @@ interface HelperResponse {
 let helperProcess: ChildProcessWithoutNullStreams | null = null;
 let stdoutBuffer = "";
 const pendingRequests = new Map<string, PendingRequest>();
+const dismissalListeners = new Set<() => void>();
 
 export async function translateWithAppleSystem(
   request: TranslateRequest
@@ -67,6 +69,13 @@ export function dismissAppleSystemTranslation(): void {
       action: "dismiss"
     })}\n`
   );
+}
+
+export function onAppleSystemTranslationDismissed(listener: () => void): () => void {
+  dismissalListeners.add(listener);
+  return () => {
+    dismissalListeners.delete(listener);
+  };
 }
 
 function getAppleTranslationHelperPath(): string {
@@ -136,6 +145,13 @@ function handleHelperResponse(line: string): void {
   }
 
   const pending = pendingRequests.get(response.id);
+  if (response.event === "dismissed") {
+    for (const listener of dismissalListeners) {
+      listener();
+    }
+    return;
+  }
+
   if (!pending) {
     return;
   }

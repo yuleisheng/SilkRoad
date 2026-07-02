@@ -189,5 +189,6 @@ export interface SilkRoadAPI {
   translation?: {
     translate(request: TranslateRequest): Promise<TranslateResponse>;
     dismiss(): Promise<void>;
+    onDismissed(handler: () => void): () => void;
   };
 }

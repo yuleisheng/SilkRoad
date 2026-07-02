@@ -1,4 +1,4 @@
-import { dialog, ipcMain } from "electron";
+import { BrowserWindow, dialog, ipcMain } from "electron";
 import { copyFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -16,6 +16,7 @@ import { LibraryDatabase } from "./storage/database";
 import { ProviderManager } from "./providers/provider-manager";
 import {
   dismissAppleSystemTranslation,
+  onAppleSystemTranslationDismissed,
   translateWithAppleSystem
 } from "./system-translation";
 import { getTranslator } from "../shared/i18n";
@@ -132,6 +133,14 @@ export function registerIpcHandlers(
 
   ipcMain.handle("translation:dismiss", () => {
     dismissAppleSystemTranslation();
+  });
+
+  onAppleSystemTranslationDismissed(() => {
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.webContents.isDestroyed()) {
+        window.webContents.send("translation:dismissed");
+      }
+    }
   });
 
   ipcMain.handle("ai:chat", (_event, request: ChatRequest) =>

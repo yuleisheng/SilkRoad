@@ -22,6 +22,9 @@ protocol.registerSchemesAsPrivileged([
 
 let mainWindow: BrowserWindow | null = null;
 let database: LibraryDatabase | null = null;
+const APP_NAME = "SilkRoad";
+
+app.setName(APP_NAME);
 
 async function createWindow(): Promise<void> {
   const distDir = path.resolve(__dirname, "..", "..");
@@ -39,6 +42,7 @@ async function createWindow(): Promise<void> {
     minWidth: 980,
     minHeight: 680,
     titleBarStyle: "hidden",
+    title: APP_NAME,
     trafficLightPosition: { x: 8, y: 16 },
     backgroundColor: "#f6f6f3",
     ...(iconPath ? { icon: iconPath } : {}),

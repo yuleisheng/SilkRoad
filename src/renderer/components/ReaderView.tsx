@@ -11,6 +11,7 @@ import {
   Trash2,
   X
 } from "lucide-react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { TranslateFunction } from "../../shared/i18n";
 import type {
@@ -41,6 +42,7 @@ interface ActiveSelection {
 }
 
 type SideTab = "annotations" | "ai";
+type SelectionPopupMode = "actions" | "note";
 
 interface TranslationPopover {
   status: "loading" | "ready" | "error";
@@ -71,6 +73,8 @@ export function ReaderView({
   const [annotations, setAnnotations] = useState<AnnotationRecord[]>([]);
   const [selection, setSelection] = useState<ActiveSelection | null>(null);
   const [selectionUiVisible, setSelectionUiVisible] = useState(false);
+  const [selectionPopupMode, setSelectionPopupMode] =
+    useState<SelectionPopupMode>("actions");
   const [currentChapterText, setCurrentChapterText] = useState("");
   const [sideTab, setSideTab] = useState<SideTab>(getInitialSideTab);
   const [noteDraft, setNoteDraft] = useState("");
@@ -150,6 +154,7 @@ export function ReaderView({
           chapterText: DEMO_CHAPTER_TEXT,
           toolbarPosition: { left: 430, top: 438 }
         });
+        setSelectionPopupMode("actions");
         setSelectionUiVisible(true);
         setSideTab(initialTab);
         if (initialTab === "ai") {
@@ -244,6 +249,8 @@ export function ReaderView({
           activeContentsRef.current = contents;
           trackContentsPointerDismiss(contents);
           setSelection({ cfiRange, text: selectedText, chapterText, toolbarPosition });
+          setSelectionPopupMode("actions");
+          setNoteDraft("");
           setSelectionUiVisible(true);
           setCurrentChapterText(chapterText);
         }
@@ -298,6 +305,9 @@ export function ReaderView({
     });
     setAnnotations((current) => [...current, annotation]);
     paintAnnotation(annotation);
+    if (type === "note") {
+      setSideTab("annotations");
+    }
     dismissSelectionUi({ clearContext: true });
     setNoteDraft("");
   }
@@ -508,12 +518,40 @@ export function ReaderView({
     dismissSelectionUi();
   }
 
+  function openInlineNoteComposer() {
+    setNoteDraft("");
+    setSelectionPopupMode("note");
+  }
+
+  function closeInlineNoteComposer() {
+    setNoteDraft("");
+    setSelectionPopupMode("actions");
+  }
+
+  function handleNoteDraftKeyDown(
+    event: ReactKeyboardEvent<HTMLTextAreaElement>
+  ) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeInlineNoteComposer();
+      return;
+    }
+
+    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      if (noteDraft.trim()) {
+        void createHighlight("note", noteDraft);
+      }
+    }
+  }
+
   function dismissSelectionUi({
     clearContext = false,
     cancelTranslation = true
   } = {}) {
     clearNativeSelection();
     setSelectionUiVisible(false);
+    setSelectionPopupMode("actions");
     if (cancelTranslation) {
       translationRequestIdRef.current += 1;
       setTranslationPopover(null);
@@ -603,32 +641,68 @@ export function ReaderView({
               ref={selectionToolbarRef}
               className={`selection-toolbar${
                 selection.toolbarPosition ? " positioned" : ""
-              }`}
+              }${selectionPopupMode === "note" ? " note-editor" : ""}`}
               style={
                 selection.toolbarPosition
                   ? {
                       left: selection.toolbarPosition.left,
-                      top: selection.toolbarPosition.top
+                      top:
+                        selectionPopupMode === "note"
+                          ? Math.max(selection.toolbarPosition.top, 220)
+                          : selection.toolbarPosition.top
                     }
                   : undefined
               }
             >
-              <button onClick={() => void createHighlight("highlight")}>
-                <Highlighter size={16} />
-                {t("reader.highlight")}
-              </button>
-              <button onClick={() => openSideTab("annotations")}>
-                <StickyNote size={16} />
-                {t("reader.note")}
-              </button>
-              <button onClick={() => void translateSelection()}>
-                <Languages size={16} />
-                {t("reader.translate")}
-              </button>
-              <button onClick={() => openSideTab("ai")}>
-                <MessageSquare size={16} />
-                {t("reader.ai")}
-              </button>
+              {selectionPopupMode === "note" ? (
+                <div className="selection-note-editor">
+                  <p className="selection-note-quote">“{selection.text}”</p>
+                  <textarea
+                    autoFocus
+                    value={noteDraft}
+                    placeholder={t("reader.notePlaceholder")}
+                    onChange={(event) => setNoteDraft(event.target.value)}
+                    onKeyDown={handleNoteDraftKeyDown}
+                  />
+                  <div className="selection-note-actions">
+                    <button
+                      className="selection-note-cancel"
+                      title={t("reader.cancelNote")}
+                      aria-label={t("reader.cancelNote")}
+                      onClick={closeInlineNoteComposer}
+                    >
+                      <X size={15} />
+                    </button>
+                    <button
+                      className="selection-note-save"
+                      onClick={() => void createHighlight("note", noteDraft)}
+                      disabled={!noteDraft.trim()}
+                    >
+                      <Save size={15} />
+                      {t("reader.saveNote")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <button onClick={() => void createHighlight("highlight")}>
+                    <Highlighter size={16} />
+                    {t("reader.highlight")}
+                  </button>
+                  <button onClick={openInlineNoteComposer}>
+                    <StickyNote size={16} />
+                    {t("reader.note")}
+                  </button>
+                  <button onClick={() => void translateSelection()}>
+                    <Languages size={16} />
+                    {t("reader.translate")}
+                  </button>
+                  <button onClick={() => openSideTab("ai")}>
+                    <MessageSquare size={16} />
+                    {t("reader.ai")}
+                  </button>
+                </>
+              )}
             </div>
           ) : null}
           {translationPopover ? (
@@ -697,24 +771,6 @@ export function ReaderView({
 
             {sideTab === "annotations" ? (
               <div className="side-section">
-                {selection ? (
-                  <div className="note-composer">
-                    <p>{selection.text}</p>
-                    <textarea
-                      value={noteDraft}
-                      onChange={(event) => setNoteDraft(event.target.value)}
-                    />
-                    <button
-                      className="primary-button"
-                      onClick={() => void createHighlight("note", noteDraft)}
-                      disabled={!noteDraft.trim()}
-                    >
-                      <Save size={16} />
-                      {t("reader.saveNote")}
-                    </button>
-                  </div>
-                ) : null}
-
                 <div className="annotation-list">
                   {annotations.map((annotation) => (
                     <article key={annotation.id} className="annotation-item">

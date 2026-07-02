@@ -655,7 +655,7 @@ export function ReaderView({
 
   function paintAiDiscussion(discussion: AiDiscussionRecord) {
     const rendition = renditionRef.current;
-    if (!rendition?.annotations?.highlight && !rendition?.annotations?.underline) {
+    if (!rendition?.annotations?.highlight) {
       return;
     }
 
@@ -666,22 +666,6 @@ export function ReaderView({
         void openAiDiscussion(discussion);
       };
 
-      if (rendition.annotations.underline) {
-        rendition.annotations.underline(
-          discussion.cfiRange,
-          { id: discussion.id, type: "ai-discussion" },
-          openDiscussion,
-          "ai-discussion-mark",
-          {
-            stroke: "#7e78d8",
-            "stroke-opacity": "0.84",
-            "stroke-width": "2.4",
-            cursor: "pointer"
-          }
-        );
-        return;
-      }
-
       rendition.annotations.highlight(
         discussion.cfiRange,
         { id: discussion.id, type: "ai-discussion" },
@@ -689,8 +673,13 @@ export function ReaderView({
         "ai-discussion-mark",
         {
           fill: "#7e78d8",
-          "fill-opacity": "0.13",
+          "fill-opacity": "0.045",
+          stroke: "#7e78d8",
+          "stroke-opacity": "0.58",
+          "stroke-width": "1.5",
           "mix-blend-mode": "multiply",
+          rx: "3",
+          ry: "3",
           cursor: "pointer"
         }
       );

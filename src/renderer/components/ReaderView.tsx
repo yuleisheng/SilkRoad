@@ -305,6 +305,7 @@ export function ReaderView({
           setSelectionPopupMode("actions");
           setNoteDraft("");
           setActiveDiscussion(null);
+          setMessages([]);
           setSelectionUiVisible(true);
           setCurrentChapterText(chapterText);
         }
